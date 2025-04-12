@@ -1,0 +1,5 @@
+Setup:
+
+1) Make sure your database is set corectly in the MyDbContext.cs file
+2) Run command: dotnet ef database update   (in order to update your database with the first already created migration)
+
