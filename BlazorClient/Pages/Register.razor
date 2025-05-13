@@ -1,0 +1,66 @@
+@page "/register"
+@inject BlazorClient.Services.IAuthService AuthService
+@inject NavigationManager NavigationManager
+@using BlazorClient.Models
+
+<h3>Register</h3>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")">@message</div>
+}
+
+<EditForm Model="@registerRequest" OnValidSubmit="HandleRegistration">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label>Name:</label>
+        <InputText class="form-control" @bind-Value='registerRequest.Name' />
+    </div>
+    <div class="form-group">
+        <label>Surname:</label>
+        <InputText class="form-control" @bind-Value="registerRequest.Surname" />
+    </div>
+    <div class="form-group">
+        <label>Email:</label>
+        <InputText type="email" class="form-control" @bind-Value="registerRequest.Email" />
+    </div>
+    <div class="form-group">
+        <label>Password:</label>
+        <InputText type="password" class="form-control" @bind-Value="registerRequest.Password" />
+    </div>
+     <div class="form-group">
+        <label>Role:</label>
+        <InputSelect TValue="string" @bind-value="registerRequest.Role" class="form-control">
+            <option value="Student">Student</option>
+            <option value="Teacher">Teacher</option>
+            @* <option value="Admin">Admin</option> *@
+        </InputSelect>
+    </div>
+    <button type="submit" class="btn btn-primary">Register</button>
+</EditForm>
+
+@code {
+    private RegisterRequest registerRequest = new RegisterRequest();
+    private string? message;
+    private bool isSuccess;
+
+    private async Task HandleRegistration()
+    {
+        message = null;
+        var result = await AuthService.Register(registerRequest);
+        if (result)
+        {
+            isSuccess = true;
+            message = "Registration successful! Please log in.";
+            // Optionally navigate to login or show a success message
+            // NavigationManager.NavigateTo("/login");
+        }
+        else
+        {
+            isSuccess = false;
+            message = "Registration failed. Please try again.";
+        }
+    }
+}

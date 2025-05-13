@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace DataAccess.Models;
 
@@ -11,7 +12,8 @@ public sealed class Student : User
     public string Minor { get; set; } = string.Empty;
     public string Status { get; set; } = "Active";
     private readonly HashSet<ConsultationStudent> _consultationLinks = new();
-    public Guid? TeachersId { get; set; } = null;
+    private readonly HashSet<Review> _reviewsWritten = new(); // Added for reviews written by the student
+    public Guid? TeacherId { get; set; } = null; // Renamed from 'TeachersId'
     public Teacher? Teacher { get; set; } = null!;
-    
+    public IReadOnlyCollection<Review> ReviewsWritten => _reviewsWritten; // Added
 }

@@ -1,0 +1,35 @@
+@page "/consultation/{ConsultationId}"
+@attribute [Authorize]
+@using BlazorClient.Models
+@* @inject IConsultationService ConsultationService - Add when service is more complete *@
+
+<h3>Consultation Details</h3>
+
+@if (consultation == null)
+{
+    <p><em>Loading details...</em></p>
+}
+else
+{
+    <h4>@consultation.Topic</h4>
+    <p><strong>Scheduled:</strong> @consultation.ScheduledAt</p>
+    <p><strong>Teacher:</strong> @consultation.TeacherName</p>
+    @* Add more details, materials, reviews, book/cancel buttons here *@
+}
+
+@code {
+    [Parameter]
+    public string? ConsultationId { get; set; }
+
+    private Consultation? consultation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(ConsultationId) && Guid.TryParse(ConsultationId, out Guid id))
+        {
+            // consultation = await ConsultationService.GetConsultationByIdAsync(id); // Implement this in service
+            // Placeholder:
+            consultation = new Consultation { Id = id, Topic = "Sample Topic from Detail", ScheduledAt = DateTime.Now.AddDays(3), TeacherName = "Dr. Smith" };
+        }
+    }
+}

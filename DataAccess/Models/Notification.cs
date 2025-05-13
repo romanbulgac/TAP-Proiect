@@ -5,21 +5,25 @@ using DataAccess.Models;
 
 namespace DataAccess.Models;
 
-public sealed class Notification
+public sealed class Notification : AuditEntity
 {
     [Key]
-    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-    [Required, MaxLength(150)]
+    [Required]
+    public Guid UserId { get; set; }
+    [ForeignKey("UserId")]
+    public User User { get; set; } = null!;
+
+    [Required, MaxLength(500)]
+    public string Message { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
 
-    [Required, MaxLength(2000)]
-    public string Message { get; set; } = string.Empty;
+    public bool IsRead { get; set; } = false;
 
-    public bool IsRead { get; set; }
+    public DateTime NotificationDate { get; set; } = DateTime.UtcNow;
 
-    public DateTime SentAt { get; private set; } = DateTime.UtcNow;
-
-    public Guid UserId { get; set; }
-    public User user { get; set; } = null!;
+    [MaxLength(255)]
+    public string? Link { get; set; } // Optional link for the notification
+    public DateTime SentAt { get; set; }
 }

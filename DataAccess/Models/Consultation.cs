@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataAccess.Models;
 
-public sealed class Consultation
+public sealed class Consultation : AuditEntity
 {
     public enum Status
     {
@@ -35,8 +35,6 @@ public sealed class Consultation
 
     public int DurationMinutes { get; set; }
 
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public Status ConsultationStatus { get; set; } = Status.Scheduled;
     public Type ConsultationType { get; set; } = Type.Individual;
 

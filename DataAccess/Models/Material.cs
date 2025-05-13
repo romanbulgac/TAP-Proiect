@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataAccess.Models;
 
-public sealed class Material
+public sealed class Material : AuditEntity
 {
     [Key]
     public Guid Id { get; private set; } = Guid.NewGuid();
@@ -20,8 +20,6 @@ public sealed class Material
 
     [MaxLength(1000)]
     public string? Description { get; set; }
-
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
     public Guid TeacherId { get; set; }
     public Teacher Teacher { get; set; } = null!;

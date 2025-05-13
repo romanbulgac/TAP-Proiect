@@ -2,23 +2,32 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace DataAccess.Models;
-
-public sealed class UserAccount
+namespace DataAccess.Models
 {
-    [Key, ForeignKey(nameof(User))]
-    public Guid Id { get; private set; }
+    /// <summary>
+    /// Represents a user's account credentials in the system.
+    /// </summary>
+    public class UserAccount : AuditEntity
+    {
+        [Key]
+        public Guid Id { get; set; } = Guid.NewGuid(); // Changed to have a public setter
 
-    [Required, MaxLength(100)]
-    public string UserName { get; set; } = string.Empty;
+        [Required]
+        public Guid UserId { get; set; } // Foreign key to User
 
-    [Required]
-    public string PasswordHash { get; set; } = string.Empty;
+        [ForeignKey("UserId")]
+        public virtual User User { get; set; } = null!;
 
-    public DateTime? LastLoginAt { get; set; }
+        [Required]
+        [MaxLength(256)]
+        public string UserName { get; set; } = string.Empty; // Can be email or a chosen username
 
-    public bool IsActive { get; set; } = true;
+        [Required]
+        public string PasswordHash { get; set; } = string.Empty;
 
-    /// <summary>Навигация к пользователю.</summary>
-    public User User { get; set; } = null!;
+        // Add any other account-specific properties if needed, e.g.,
+        // public bool IsLockedOut { get; set; }
+        // public DateTime? LockoutEndDateUtc { get; set; }
+        // public int AccessFailedCount { get; set; }
+    }
 }

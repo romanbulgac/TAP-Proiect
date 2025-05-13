@@ -33,18 +33,20 @@ namespace WebAPI.Controllers
         [HttpPost]
         public IActionResult Post([FromBody] TestModelDto model)
         {
+            if (model == null) return BadRequest("Model cannot be null");
+            if (string.IsNullOrEmpty(model.Name)) return BadRequest("Name is required");
             _testService.Create(model);
-            return Ok("Succesfully created");
+            return Ok("Successfully created");
         }
 
         [HttpPut("{id}")]
         public IActionResult Put(Guid id, [FromBody] TestModelDto model)
         {
-            if (id != model.Id)
-                return BadRequest();
-
+            if (model == null) return BadRequest("Model cannot be null");
+            if (id != model.Id) return BadRequest("Mismatched ID");
+            if (string.IsNullOrEmpty(model.Name)) return BadRequest("Name is required");
             _testService.Update(id, model);
-            return Ok("Updated succesfully");
+            return Ok("Updated successfully");
         }
 
         [HttpDelete("{id}")]

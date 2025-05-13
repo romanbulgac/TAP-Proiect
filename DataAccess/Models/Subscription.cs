@@ -1,17 +1,31 @@
 using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataAccess.Models;
 
-public class Subscription
+public class Subscription : AuditEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid(); // Unique identifier for the subscription
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid StudentId { get; set; } // Identifier for the student who owns the subscription
+    [Required]
+    public Guid UserId { get; set; } // The user who is subscribed
+    [ForeignKey("UserId")]
+    public User User { get; set; } = null!;
 
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow; // Timestamp when the subscription was created
-    public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow; 
-    public DateTime ExpiresAt { get; set; } // Timestamp when the subscription expires
-    public DateTime? LastRenewedAt { get; set; } // Timestamp when the subscription was last renewed
+    // Example: Subscribing to a Teacher's new materials or consultations
+    public Guid? SubscribedToTeacherId { get; set; }
+    [ForeignKey("SubscribedToTeacherId")]
+    public Teacher? SubscribedToTeacher { get; set; }
 
-    public bool IsActive { get; set; } = true; // Indicates whether the subscription is currently active
+    // Example: Subscribing to a specific type of content or entity
+    // public Guid? TargetEntityId { get; set; } // ID of the entity being subscribed to (e.g., a course, a forum thread)
+    // [MaxLength(100)]
+    // public string? TargetEntityType { get; set; } // Type of the entity (e.g., "Course", "Teacher")
+
+    [Required, MaxLength(100)]
+    public string SubscriptionType { get; set; } = string.Empty; // e.g., "NewMaterialsFromTeacher", "ConsultationUpdates"
+
+    public DateTime SubscriptionDate { get; set; } = DateTime.UtcNow;
 }

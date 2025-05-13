@@ -2,26 +2,29 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace DataAccess.Models;
-
-public sealed class Review
+namespace DataAccess.Models
 {
-    [Key]
-    public Guid Id { get; private set; } = Guid.NewGuid();
+    public class Review : AuditEntity
+    {
+        [Key]
+        public Guid Id { get; set; } = Guid.NewGuid();
 
-    [Range(1, 5)]
-    public int Rating { get; set; }
+        [Required]
+        public Guid ConsultationId { get; set; }
+        [ForeignKey("ConsultationId")]
+        public Consultation Consultation { get; set; } = null!;
 
-    [MaxLength(1000)]
-    public string? Comment { get; set; }
+        [Required]
+        public Guid StudentId { get; set; } // Assuming Students write reviews
+        [ForeignKey("StudentId")]
+        public Student Student { get; set; } = null!;
 
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+        [Range(1, 5)]
+        public int Rating { get; set; } // e.g., 1 to 5 stars
 
-    [Required]
-    public Guid ConsultationId { get; set; }
-    public Consultation Consultation { get; set; } = null!;
+        [MaxLength(2000)]
+        public string? Comment { get; set; }
 
-    [Required]
-    public Guid StudentId { get; set; }
-    public Student Student { get; set; } = null!;
+        public DateTime ReviewDate { get; set; } = DateTime.UtcNow;
+    }
 }

@@ -1,0 +1,35 @@
+@page "/notifications"
+@attribute [Authorize]
+@inject BlazorClient.Services.INotificationService NotificationService
+@using BlazorClient.Models
+
+<h3>Your Notifications</h3>
+
+@if (notifications == null)
+{
+    <p><em>Loading notifications...</em></p>
+}
+else if (!notifications.Any())
+{
+    <p>You have no new notifications.</p>
+}
+else
+{
+    <ul>
+        @foreach (var notification in notifications)
+        {
+            <li style="@(notification.IsRead ? "" : "font-weight:bold;")">
+                <strong>@notification.Title</strong> (@notification.SentAt.ToShortDateString()): @notification.Message
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private IEnumerable<Notification>? notifications;
+
+    protected override async Task OnInitializedAsync()
+    {
+        notifications = await NotificationService.GetNotificationsAsync();
+    }
+}

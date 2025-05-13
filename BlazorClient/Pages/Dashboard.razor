@@ -1,0 +1,79 @@
+@page "/"
+@attribute [Authorize]
+@inject BlazorClient.Services.IConsultationService ConsultationService
+@using BlazorClient.Models
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+<AuthorizeView>
+    <Authorized>
+        <p>Welcome, @context.User.Identity?.Name!</p>
+        <p>Your role(s): @string.Join(", ", context.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))</p>
+
+        @if (consultations == null)
+        {
+            <p><em>Loading consultations...</em></p>
+        }
+        else
+        {
+            <h3>Your Consultations</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Scheduled At</th>
+                        <th>Teacher</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var consultation in consultations)
+                    {
+                        <tr>
+                            <td>@consultation.Topic</td>
+                            <td>@consultation.ScheduledAt.ToShortDateString() @consultation.ScheduledAt.ToShortTimeString()</td>
+                            <td>@consultation.TeacherName</td>
+                            <td><a href="/consultation/@consultation.Id">Details</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (context.User.IsInRole("Teacher"))
+        {
+            <p><a href="/create-consultation" class="btn btn-primary">Create New Consultation</a></p>
+        }
+
+    </Authorized>
+    <NotAuthorized>
+        <p>You need to log in to see the dashboard.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    private IEnumerable<Consultation>? consultations;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (authenticationStateTask != null)
+        {
+            var authState = await authenticationStateTask;
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                // Fetch consultations based on user role or all if admin etc.
+                // This is a simplified fetch for all.
+                consultations = await ConsultationService.GetConsultationsAsync();
+            }
+        }
+    }
+}
