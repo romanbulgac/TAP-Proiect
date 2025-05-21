@@ -6,7 +6,7 @@ namespace DataAccess.Models
     /// <summary>
     /// Provides shared audit fields for all entities.
     /// </summary>
-    public abstract class AuditEntity
+    public abstract class AuditEntity : ISoftDelete
     {
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -14,7 +14,8 @@ namespace DataAccess.Models
         [Required]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        // Optional: Add a property for soft delete
-        // public bool IsDeleted { get; set; } = false;
+        // Implements ISoftDelete
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
     }
 }

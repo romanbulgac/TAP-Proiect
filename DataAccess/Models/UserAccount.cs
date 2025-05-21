@@ -24,6 +24,10 @@ namespace DataAccess.Models
 
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
+        
+        // Added for refresh token support
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
 
         // Add any other account-specific properties if needed, e.g.,
         // public bool IsLockedOut { get; set; }

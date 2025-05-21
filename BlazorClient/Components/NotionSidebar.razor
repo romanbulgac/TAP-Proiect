@@ -1,0 +1,98 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<div class="flex flex-col h-full bg-white border-r border-gray-200 shadow-sm @(IsCollapsed ? "w-16" : "w-64") transition-width duration-300 ease-in-out">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <div class="flex items-center">
+            <img src="/images/university-logo.png" alt="Logo" class="h-8 w-8" />
+            @if (!IsCollapsed)
+            {
+                <span class="ml-3 text-lg font-semibold text-gray-800">EduPortal</span>
+            }
+        </div>
+        <button @onclick="ToggleSidebar" class="text-gray-500 hover:text-gray-600 focus:outline-none">
+            @if (IsCollapsed)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            }
+        </button>
+    </div>
+    
+    <div class="overflow-y-auto flex-1 py-4">
+        <AuthorizeView>
+            <Authorized>
+                @{
+                    var isStudent = context.User.IsInRole("Student");
+                    var isTeacher = context.User.IsInRole("Teacher");
+                    var isAdmin = context.User.IsInRole("Administrator");
+                }
+                
+                <NavItem Url="/" Icon="home" Text="Dashboard" IsCollapsed="@IsCollapsed" />
+                
+                @if (isStudent)
+                {
+                    <NavItem Url="/consultations" Icon="calendar" Text="Consultations" IsCollapsed="@IsCollapsed" />
+                    <NavItem Url="/bookings" Icon="plus-circle" Text="Book Consultation" IsCollapsed="@IsCollapsed" />
+                }
+                
+                @if (isTeacher)
+                {
+                    <NavItem Url="/my-consultations" Icon="calendar" Text="My Sessions" IsCollapsed="@IsCollapsed" />
+                    <NavItem Url="/schedule" Icon="clock" Text="Availability" IsCollapsed="@IsCollapsed" />
+                }
+                
+                @if (isAdmin)
+                {
+                    <NavItem Url="/users" Icon="users" Text="User Management" IsCollapsed="@IsCollapsed" />
+                    <NavItem Url="/reports" Icon="chart-bar" Text="Reports" IsCollapsed="@IsCollapsed" />
+                    <NavItem Url="/settings" Icon="cog" Text="Settings" IsCollapsed="@IsCollapsed" />
+                }
+                
+                <NavItem Url="/materials" Icon="document" Text="Materials" IsCollapsed="@IsCollapsed" />
+                <NavItem Url="/notifications" Icon="bell" Text="Notifications" Badge="@unreadCount" IsCollapsed="@IsCollapsed" />
+                
+                <div class="border-t border-gray-200 mt-4 pt-4">
+                    <NavItem Url="/profile" Icon="user" Text="My Profile" IsCollapsed="@IsCollapsed" />
+                    <NavItem Url="/logout" Icon="log-out" Text="Sign Out" IsCollapsed="@IsCollapsed" />
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <NavItem Url="/login" Icon="log-in" Text="Sign In" IsCollapsed="@IsCollapsed" />
+                <NavItem Url="/register" Icon="user-plus" Text="Register" IsCollapsed="@IsCollapsed" />
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+    
+    [Parameter]
+    public EventCallback<bool> IsCollapsedChanged { get; set; }
+    
+    private int unreadCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // In a real app, fetch unread notification count here
+        // For demo purposes, we'll just set a static value
+        unreadCount = 3;
+    }
+    
+    private async Task ToggleSidebar()
+    {
+        IsCollapsed = !IsCollapsed;
+        await IsCollapsedChanged.InvokeAsync(IsCollapsed);
+    }
+}

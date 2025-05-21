@@ -1,12 +1,13 @@
-using BusinessLayer.DTOs; // For RegisterRequestDto if it were still here
+using BusinessLayer.DTOs;
 using System.Threading.Tasks;
 
 namespace BusinessLayer.Interfaces
 {
     public interface IAuthenticationService
     {
-        Task<string?> LoginAsync(string email, string password);
-        // Register method is removed
-        // CreateUser factory method is removed
+        Task<AuthenticationResultDto> LoginAsync(LoginRequestDto loginRequestDto);
+        Task<AuthenticationResultDto> RegisterAsync(RegisterRequestDto registerRequestDto);
+        Task<AuthenticationResultDto> RefreshTokenAsync(TokenRequestDto tokenRequestDto);
+        Task<bool> RevokeTokenAsync(string refreshToken);
     }
 }

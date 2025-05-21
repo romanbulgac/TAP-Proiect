@@ -1,0 +1,177 @@
+@using BlazorClient.Services
+@using DataAccess.Models
+@inject INotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<div class="relative">
+    <button @onclick="ToggleNotificationsPanel" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        @if (unreadCount > 0)
+        {
+            <span class="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                @(unreadCount > 9 ? "9+" : unreadCount.ToString())
+            </span>
+        }
+    </button>
+    
+    @if (isPanelOpen)
+    {
+        <div class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 max-h-96 overflow-y-auto">
+            <div class="p-3 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="font-medium">Notifications</h3>
+                @if (notifications.Any())
+                {
+                    <button @onclick="MarkAllAsRead" class="text-sm text-blue-600 hover:text-blue-800">
+                        Mark all as read
+                    </button>
+                }
+            </div>
+            
+            <div class="divide-y divide-gray-200">
+                @if (notifications.Any())
+                {
+                    foreach (var notification in notifications.OrderByDescending(n => n.CreatedAt))
+                    {
+                        <div class="p-4 @(notification.IsRead ? "" : "bg-blue-50")">
+                            <div class="flex justify-between">
+                                <h4 class="font-medium text-gray-900">@notification.Title</h4>
+                                <button class="text-gray-400 hover:text-gray-500" @onclick="() => MarkAsRead(notification)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1">@notification.Message</p>
+                            <div class="mt-2 text-xs text-gray-500">
+                                @GetTimeDisplay(notification.CreatedAt)
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="p-8 text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>No new notifications</p>
+                    </div>
+                }
+            </div>
+            
+            @if (notifications.Any())
+            {
+                <div class="p-2 border-t border-gray-200 text-center">
+                    <a href="/notifications" class="text-sm text-blue-600 hover:text-blue-800">View all notifications</a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool isPanelOpen = false;
+    private List<Notification> notifications = new List<Notification>();
+    private int unreadCount = 0;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to notification events
+        NotificationService.NotificationReceived += HandleNotificationReceived;
+        
+        // Initialize SignalR connection
+        await NotificationService.InitializeHubConnectionAsync();
+        
+        // Fetch existing notifications
+        await LoadNotificationsAsync();
+    }
+    
+    private async Task LoadNotificationsAsync()
+    {
+        try
+        {
+            var notificationsList = await NotificationService.GetNotificationsAsync();
+            notifications = notificationsList.ToList();
+            unreadCount = notifications.Count(n => !n.IsRead);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading notifications: {ex.Message}");
+        }
+    }
+    
+    private void HandleNotificationReceived(Notification notification)
+    {
+        // Add the new notification to our list
+        notifications.Insert(0, notification);
+        
+        // Update unread count
+        unreadCount++;
+        
+        // Show a toast notification
+        ShowToast(notification);
+        
+        // Trigger UI update
+        InvokeAsync(StateHasChanged);
+    }
+    
+    private async void ShowToast(Notification notification)
+    {
+        await JSRuntime.InvokeVoidAsync("showToast", notification.Title, notification.Message);
+    }
+    
+    private void ToggleNotificationsPanel()
+    {
+        isPanelOpen = !isPanelOpen;
+    }
+    
+    private void MarkAsRead(Notification notification)
+    {
+        if (!notification.IsRead)
+        {
+            notification.IsRead = true;
+            unreadCount = Math.Max(0, unreadCount - 1);
+            
+            // In a real app, you'd call your API to mark it as read
+            // await NotificationService.MarkAsReadAsync(notification.Id);
+        }
+    }
+    
+    private void MarkAllAsRead()
+    {
+        foreach (var notification in notifications.Where(n => !n.IsRead))
+        {
+            notification.IsRead = true;
+        }
+        
+        unreadCount = 0;
+        
+        // In a real app, you'd call your API to mark all as read
+        // await NotificationService.MarkAllAsReadAsync();
+    }
+    
+    private string GetTimeDisplay(DateTime createdAt)
+    {
+        var timeSpan = DateTime.Now - createdAt;
+        
+        return timeSpan.TotalDays > 7 
+            ? createdAt.ToString("MMM dd, yyyy")
+            : timeSpan.TotalDays > 1
+                ? $"{(int)timeSpan.TotalDays} days ago"
+                : timeSpan.TotalHours > 1
+                    ? $"{(int)timeSpan.TotalHours} hours ago"
+                    : timeSpan.TotalMinutes > 1
+                        ? $"{(int)timeSpan.TotalMinutes} minutes ago"
+                        : "Just now";
+    }
+    
+    public void Dispose()
+    {
+        // Unsubscribe to prevent memory leaks
+        NotificationService.NotificationReceived -= HandleNotificationReceived;
+    }
+}

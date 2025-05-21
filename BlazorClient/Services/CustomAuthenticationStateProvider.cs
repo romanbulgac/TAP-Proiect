@@ -1,107 +1,217 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Linq;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.JSInterop; // For localStorage interaction if you move it here
 using System.Text.Json;
-using System.Net.Http.Headers;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.JSInterop;
+using System.Net.Http.Json;
+using BlazorClient.Models;
+using System.Linq;
 
 namespace BlazorClient.Services
 {
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
-        private readonly IJSRuntime _jsRuntime;
-        private readonly HttpClient _httpClient; // Optional: if you need to validate token with server
-        private ClaimsPrincipal _anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+        private readonly ITokenService _tokenService;
+        private readonly HttpClient _httpClient;
+        private readonly ILogger<CustomAuthenticationStateProvider> _logger;
+        private readonly ClaimsPrincipal _anonymous = new ClaimsPrincipal(new ClaimsIdentity());
 
-        public CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient httpClient)
+        public CustomAuthenticationStateProvider(
+            ITokenService tokenService,
+            HttpClient httpClient,
+            ILogger<CustomAuthenticationStateProvider> logger)
         {
-            _jsRuntime = jsRuntime;
+            _tokenService = tokenService;
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             try
             {
-                var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
-                if (string.IsNullOrWhiteSpace(token))
+                var accessToken = await _tokenService.GetAccessTokenAsync();
+
+                if (string.IsNullOrEmpty(accessToken))
                 {
+                    _logger.LogInformation("No authentication token found, returning anonymous state");
                     return new AuthenticationState(_anonymous);
                 }
 
-                // Optionally set the default auth header for HttpClient instances here
-                // _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", token);
+                // Check if token needs refreshing
+                var isExpiringSoon = await _tokenService.IsTokenExpiringSoonAsync();
+                if (isExpiringSoon)
+                {
+                    _logger.LogInformation("Token is expiring soon, attempting refresh");
+                    await RefreshTokenAsync();
+                    accessToken = await _tokenService.GetAccessTokenAsync();
+                    
+                    if (string.IsNullOrEmpty(accessToken))
+                    {
+                        _logger.LogWarning("Token refresh failed, returning anonymous state");
+                        return new AuthenticationState(_anonymous);
+                    }
+                }
 
-                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwtAuthType")));
+                // Create identity with role claims for authorization
+                var identity = new ClaimsIdentity(ParseClaimsFromJwt(accessToken), "jwt");
+                var user = new ClaimsPrincipal(identity);
+                
+                // Enhanced logging for debugging authentication issues
+                _logger.LogInformation($"Authentication state created with {identity.Claims.Count()} claims");
+                string GetClaimValue(ClaimsPrincipal principal, string claimType) =>
+                    principal.Claims.FirstOrDefault(c => c.Type == claimType)?.Value ?? "null";
+                    
+                _logger.LogInformation($"User ID: {GetClaimValue(user, ClaimTypes.NameIdentifier)}");
+                _logger.LogInformation($"User Name: {user.Identity?.Name ?? "null"}");
+                
+                var roles = identity.Claims
+                    .Where(c => c.Type == ClaimTypes.Role)
+                    .Select(c => c.Value)
+                    .ToList();
+                
+                _logger.LogInformation($"Role claims found: {string.Join(", ", roles)}");
+                
+                // Log IsInRole checks for common roles
+                _logger.LogInformation($"IsInRole('Administrator'): {user.IsInRole("Administrator")}");
+                _logger.LogInformation($"IsInRole('Admin'): {user.IsInRole("Admin")}");
+                _logger.LogInformation($"IsInRole('Teacher'): {user.IsInRole("Teacher")}");
+                _logger.LogInformation($"IsInRole('Student'): {user.IsInRole("Student")}");
+                
+                return new AuthenticationState(user);
             }
-            catch
+            catch (Exception ex)
             {
-                // Handle cases where localStorage is not available (e.g., during pre-rendering)
+                _logger.LogError(ex, "Error in GetAuthenticationStateAsync");
                 return new AuthenticationState(_anonymous);
             }
         }
 
-        public void MarkUserAsAuthenticated(string token)
+        public async Task MarkUserAsAuthenticated(string accessToken, string refreshToken, int expiresIn)
         {
-            var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwtAuthType"));
-            var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
-            NotifyAuthenticationStateChanged(authState);
+            var success = await _tokenService.StoreTokensAsync(accessToken, refreshToken, expiresIn);
+            
+            if (success)
+            {
+                var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(accessToken), "jwt"));
+                var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
+                NotifyAuthenticationStateChanged(authState);
+            }
         }
 
-        public void MarkUserAsLoggedOut()
+        public async Task MarkUserAsLoggedOut()
         {
+            await _tokenService.ClearTokensAsync();
             var authState = Task.FromResult(new AuthenticationState(_anonymous));
             NotifyAuthenticationStateChanged(authState);
         }
 
-        private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
+        private async Task RefreshTokenAsync()
         {
-            var claims = new List<Claim>();
-            var payload = jwt.Split('.')[1];
-            var jsonBytes = ParseBase64WithoutPadding(payload);
-            var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-
-            if (keyValuePairs != null)
+            try
             {
-                keyValuePairs.TryGetValue(ClaimTypes.Role, out object roles);
-
-                if (roles != null)
+                var refreshToken = await _tokenService.GetRefreshTokenAsync();
+                
+                if (string.IsNullOrEmpty(refreshToken))
                 {
-                    if (roles.ToString().Trim().StartsWith("["))
+                    _logger.LogWarning("No refresh token available");
+                    return;
+                }
+                
+                _logger.LogInformation("Attempting to refresh token");
+                var response = await _httpClient.PostAsJsonAsync("api/Auth/refresh-token", new { RefreshToken = refreshToken });
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+                    
+                    if (result != null && result.Successful && !string.IsNullOrEmpty(result.Token))
                     {
-                        var parsedRoles = JsonSerializer.Deserialize<string[]>(roles.ToString());
-                        foreach (var parsedRole in parsedRoles)
-                        {
-                            claims.Add(new Claim(ClaimTypes.Role, parsedRole));
-                        }
+                        await _tokenService.StoreTokensAsync(
+                            result.Token, 
+                            result.RefreshToken ?? string.Empty, 
+                            result.ExpiresIn ?? 3600);
+                        
+                        _logger.LogInformation("Token refreshed successfully");
                     }
                     else
                     {
-                        claims.Add(new Claim(ClaimTypes.Role, roles.ToString()));
+                        _logger.LogWarning("Refresh token response was unsuccessful or invalid");
                     }
-                    keyValuePairs.Remove(ClaimTypes.Role);
                 }
-
-
-                claims.AddRange(keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString())));
+                else
+                {
+                    _logger.LogWarning($"Failed to refresh token: {response.StatusCode}");
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        // If unauthorized, clear tokens to force re-login
+                        await _tokenService.ClearTokensAsync();
+                    }
+                }
             }
-            return claims;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+            }
         }
 
-        private static byte[] ParseBase64WithoutPadding(string base64)
+        private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
         {
-            switch (base64.Length % 4)
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(jwt);
+            
+            // Create a list to hold all claims
+            var claims = new List<Claim>();
+            
+            // Keep track of roles to avoid duplicates
+            var roleClaims = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            
+            // Add all claims from token
+            foreach (var claim in token.Claims)
             {
-                case 2: base64 += "=="; break;
-                case 3: base64 += "="; break;
+                claims.Add(claim);
+                
+                // Handle various formats of role claims
+                if (claim.Type == "role" || 
+                    claim.Type == ClaimTypes.Role || 
+                    claim.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                {
+                    if (!roleClaims.Contains(claim.Value))
+                    {
+                        // Use ClaimTypes.Role for standard ASP.NET Core role checks
+                        claims.Add(new Claim(ClaimTypes.Role, claim.Value));
+                        roleClaims.Add(claim.Value);
+                    }
+                }
+                
+                // Special handling for UserType claims
+                if (claim.Type == "UserType" && !string.IsNullOrEmpty(claim.Value))
+                {
+                    if (!roleClaims.Contains(claim.Value))
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, claim.Value));
+                        roleClaims.Add(claim.Value);
+                    }
+                }
+                
+                // Always ensure Administrator and Admin roles are paired
+                if (roleClaims.Contains("Administrator") && !roleClaims.Contains("Admin"))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                    roleClaims.Add("Admin");
+                }
+                else if (roleClaims.Contains("Admin") && !roleClaims.Contains("Administrator"))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Administrator"));
+                    roleClaims.Add("Administrator");
+                }
             }
-            return Convert.FromBase64String(base64);
+            
+            // Log all role claims for debugging
+            var roles = claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
+            _logger.LogInformation($"Roles detected in JWT: {string.Join(", ", roles)}");
+            
+            return claims;
         }
     }
 }

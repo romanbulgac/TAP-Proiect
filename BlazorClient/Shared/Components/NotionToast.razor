@@ -1,0 +1,133 @@
+@implements IDisposable
+@inject IJSRuntime JSRuntime
+
+<div class="fixed inset-0 flex items-start justify-end p-6 pointer-events-none" style="z-index: 9999">
+    <div class="max-w-sm w-full">
+        @foreach (var toast in _toasts)
+        {
+            <div class="@GetToastClasses(toast) transform transition-all duration-300 ease-in-out"
+                 style="@GetToastStyle(toast)">
+                <div class="p-4">
+                    <div class="flex items-start">
+                        @if (!string.IsNullOrEmpty(toast.Title))
+                        {
+                            <div class="ml-3 w-0 flex-1">
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    @toast.Title
+                                </p>
+                                @if (!string.IsNullOrEmpty(toast.Message))
+                                {
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        @toast.Message
+                                    </p>
+                                }
+                            </div>
+                        }
+                        <div class="ml-4 flex shrink-0">
+                            <button @onclick="() => DismissToast(toast)"
+                                    class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <span class="sr-only">Close</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<ToastNotification> _toasts = new();
+    private System.Timers.Timer? _cleanupTimer;
+
+    protected override void OnInitialized()
+    {
+        _cleanupTimer = new System.Timers.Timer(1000);
+        _cleanupTimer.Elapsed += async (sender, e) => await CleanupExpiredToasts();
+        _cleanupTimer.Start();
+    }
+
+    public void ShowToast(string message, string? title = null, ToastType type = ToastType.Info, int durationMs = 5000)
+    {
+        var toast = new ToastNotification
+        {
+            Message = message,
+            Title = title,
+            Type = type,
+            CreatedAt = DateTime.Now,
+            ExpiresAt = DateTime.Now.AddMilliseconds(durationMs)
+        };
+
+        _toasts.Add(toast);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CleanupExpiredToasts()
+    {
+        var now = DateTime.Now;
+        var expired = _toasts.Where(t => t.ExpiresAt <= now).ToList();
+        
+        if (expired.Any())
+        {
+            foreach (var toast in expired)
+            {
+                _toasts.Remove(toast);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void DismissToast(ToastNotification toast)
+    {
+        _toasts.Remove(toast);
+        StateHasChanged();
+    }
+
+    private string GetToastClasses(ToastNotification toast)
+    {
+        var baseClasses = "mb-4 rounded-lg shadow-lg overflow-hidden pointer-events-auto";
+        
+        var typeClasses = toast.Type switch
+        {
+            ToastType.Success => "bg-green-50 dark:bg-green-900",
+            ToastType.Error => "bg-red-50 dark:bg-red-900",
+            ToastType.Warning => "bg-yellow-50 dark:bg-yellow-900",
+            _ => "bg-white dark:bg-gray-800"
+        };
+
+        return $"{baseClasses} {typeClasses}";
+    }
+
+    private string GetToastStyle(ToastNotification toast)
+    {
+        var progress = 1 - (toast.ExpiresAt - DateTime.Now).TotalMilliseconds / 
+                          (toast.ExpiresAt - toast.CreatedAt).TotalMilliseconds;
+        
+        return $"opacity: {1 - progress};";
+    }
+
+    public void Dispose()
+    {
+        _cleanupTimer?.Dispose();
+    }
+
+    private class ToastNotification
+    {
+        public string? Title { get; set; }
+        public string Message { get; set; } = "";
+        public ToastType Type { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime ExpiresAt { get; set; }
+    }
+
+    public enum ToastType
+    {
+        Info,
+        Success,
+        Warning,
+        Error
+    }
+}

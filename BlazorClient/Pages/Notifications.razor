@@ -1,0 +1,190 @@
+@page "/notifications-list"
+@using BlazorClient.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using BlazorClient.Services
+@inject INotificationService NotificationService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="p-5 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900">Notifications</h3>
+            <div class="flex">
+                <button class="text-sm text-blue-600 hover:text-blue-800 mr-3" @onclick="MarkAllAsRead">
+                    Mark all as read
+                </button>
+                <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                    @UnreadCount
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-y-auto max-h-[600px]">
+        @if (isLoading)
+        {
+            <div class="flex justify-center items-center h-32">
+                <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+        }
+        else if (notifications.Any())
+        {
+            <ul class="divide-y divide-gray-200">
+                @foreach (var notification in notifications.OrderByDescending(n => n.CreatedAt))
+                {
+                    <li class="@(notification.IsRead ? "" : "bg-blue-50")" @key="notification.Id">
+                        <div class="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                             @onclick="() => MarkAsRead(notification)">
+                            <div class="flex items-center">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-gray-900 truncate">
+                                        @notification.Title
+                                    </p>
+                                    <p class="text-sm text-gray-500 truncate">
+                                        @notification.Message
+                                    </p>
+                                </div>
+                                <div class="ml-4 flex-shrink-0 flex flex-col items-end">
+                                    <p class="text-xs text-gray-500">
+                                        @GetTimeAgo(notification.CreatedAt)
+                                    </p>
+                                    @if (!notification.IsRead)
+                                    {
+                                        <span class="inline-block h-2 w-2 rounded-full bg-blue-600 mt-1"></span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="flex flex-col items-center justify-center py-12">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <p class="text-gray-500 font-medium">No notifications</p>
+                <p class="text-gray-400 text-sm">You're all caught up!</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Notification> notifications = new List<Notification>();
+    private bool isLoading = true;
+    
+    private int UnreadCount => notifications.Count(n => !n.IsRead);
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotificationsAsync();
+        
+        try
+        {
+            // Initialize SignalR connection for real-time updates
+            await NotificationService.InitializeHubConnectionAsync();
+            
+            // Register for real-time notifications
+            NotificationService.NotificationReceived += OnNotificationReceived;
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowErrorAsync("Failed to connect to notification service", "Connection Error");
+            Console.Error.WriteLine($"SignalR connection error: {ex.Message}");
+        }
+    }
+    
+    private void OnNotificationReceived(Notification notification)
+    {
+        // Add the new notification to our list
+        notifications.Insert(0, notification);
+        
+        // Show a toast notification
+        ToastService.ShowInfoAsync(notification.Message, notification.Title);
+        
+        // Update the UI
+        StateHasChanged();
+    }
+    
+    private async Task LoadNotificationsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            var result = await NotificationService.GetNotificationsAsync();
+            notifications = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowErrorAsync("Failed to load notifications", "Error");
+            Console.Error.WriteLine($"Error loading notifications: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task MarkAsRead(Notification notification)
+    {
+        if (!notification.IsRead)
+        {
+            // In real app, call API to mark notification as read
+            notification.IsRead = true;
+            
+            // Navigate if there's a link associated with the notification
+            if (!string.IsNullOrEmpty(notification.Link))
+            {
+                await JSRuntime.InvokeVoidAsync("open", notification.Link, "_self");
+            }
+            
+            StateHasChanged();
+        }
+        else if (!string.IsNullOrEmpty(notification.Link))
+        {
+            // If already read but has a link, just navigate
+            await JSRuntime.InvokeVoidAsync("open", notification.Link, "_self");
+        }
+    }
+    
+    private async Task MarkAllAsRead()
+    {
+        // In real app, call API to mark all as read
+        foreach (var notification in notifications)
+        {
+            notification.IsRead = true;
+        }
+        StateHasChanged();
+    }
+    
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.Now - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        if (timeSpan.TotalHours < 1)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalDays < 1)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+            
+        return dateTime.ToString("MMM d");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Unregister from notification events to prevent memory leaks
+        if (NotificationService != null)
+        {
+            NotificationService.NotificationReceived -= OnNotificationReceived;
+        }
+    }
+}

@@ -1,0 +1,72 @@
+@inject NavigationManager NavigationManager
+
+<button type="@Type" 
+       class="@GetButtonClasses()" 
+       disabled="@Disabled"
+       @onclick="HandleClick"
+       @attributes="AdditionalAttributes">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string Variant { get; set; } = "default";
+
+    [Parameter]
+    public string Size { get; set; } = "md";
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public string? Href { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = "button";
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string GetButtonClasses()
+    {
+        var baseClasses = "inline-flex items-center justify-center transition-all duration-200 ease-in-out rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+        
+        var variantClasses = Variant switch
+        {
+            "primary" => "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500",
+            "secondary" => "bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200",
+            "ghost" => "hover:bg-gray-100 text-gray-700 dark:hover:bg-gray-800 dark:text-gray-200",
+            _ => "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+        };
+
+        var sizeClasses = Size switch
+        {
+            "sm" => "px-3 py-2 text-sm",
+            "lg" => "px-6 py-3 text-lg",
+            _ => "px-4 py-2 text-base"
+        };
+
+        return $"{baseClasses} {variantClasses} {sizeClasses}";
+    }
+
+    private async Task HandleClick(MouseEventArgs args)
+    {
+        if (Disabled)
+            return;
+
+        if (!string.IsNullOrEmpty(Href))
+        {
+            NavigationManager.NavigateTo(Href);
+        }
+        else if (OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync(args);
+        }
+    }
+}

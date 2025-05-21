@@ -11,6 +11,4 @@ public sealed class Teacher : User
     private readonly HashSet<Consultation> _consultations = new();
     public string Department { get; set; } = string.Empty;
     public IReadOnlyCollection<Consultation> Consultations => _consultations;
-    public Student Student { get; set; } = null!;
-    public Guid? StudentId { get; set; } = null;
 }

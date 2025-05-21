@@ -1,0 +1,273 @@
+@page "/my-consultations"
+@using BusinessLayer.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using BlazorClient.Services
+@attribute [Authorize(Roles = "Teacher")]
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IConsultationService ConsultationService
+@inject ToastService ToastService
+@implements IDisposable
+
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-semibold">My Teaching Sessions</h1>
+    
+    <div class="mt-4 sm:mt-0 flex space-x-2">
+        <div class="relative">
+            <input type="text" 
+                   @bind="searchTerm" 
+                   @bind:event="oninput" 
+                   placeholder="Search consultations..." 
+                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <select @bind="statusFilter" class="py-2 pl-3 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Statuses</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Pending">Pending</option>
+        </select>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="flex justify-center items-center h-64">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+}
+else
+{
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+    </div>
+}
+else
+{
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @if (FilteredConsultations.Any())
+                    {
+                        @foreach (var consultation in FilteredConsultations)
+                        {
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold mr-3">
+                                        @(string.IsNullOrEmpty(consultation.StudentName) ? "S" : consultation.StudentName.Substring(0, 1).ToUpper())
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">@consultation.StudentName</div>
+                                        <div class="text-sm text-gray-500">@consultation.Title</div>
+                                    </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@consultation.Topic</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@consultation.ScheduledAt.ToString("MMM d, yyyy")</div>
+                                    <div class="text-sm text-gray-500">@consultation.ScheduledAt.ToString("h:mm tt")</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">@consultation.DurationMinutes min</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full @GetStatusClass(consultation.Status)">
+                                        @consultation.Status
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div class="flex items-center justify-end space-x-2">
+                                        <a href="/consultation/@consultation.Id" class="text-blue-600 hover:text-blue-900 rounded-md px-2 py-1 hover:bg-blue-50">View</a>
+                                        
+                                        @if (consultation.Status == "Scheduled" && consultation.ScheduledAt > DateTime.Now)
+                                        {
+                                            <button @onclick="() => StartConsultation(consultation.Id)" 
+                                                    class="text-green-600 hover:text-green-900 rounded-md px-2 py-1 hover:bg-green-50">
+                                                Start
+                                            </button>
+                                            
+                                            <button @onclick="() => CancelConsultation(consultation.Id)" 
+                                                    class="text-red-600 hover:text-red-900 rounded-md px-2 py-1 hover:bg-red-50">
+                                                Cancel
+                                            </button>
+                                        }
+                                        
+                                        @if (consultation.Status == "Completed")
+                                        {
+                                            <button @onclick="() => NavigateToMaterials(consultation.Id)" 
+                                                    class="text-purple-600 hover:text-purple-900 rounded-md px-2 py-1 hover:bg-purple-50">
+                                                Add Materials
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <p class="text-gray-500 font-medium mb-1">No consultations found</p>
+                                    <p class="text-gray-400 text-sm">Try changing your filters or check back later.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="mt-6">
+    <a href="/schedule" class="inline-flex items-center py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+        Set Availability
+    </a>
+</div>
+
+@code {
+    private List<ConsultationDto> consultations = new List<ConsultationDto>();
+    private string searchTerm = string.Empty;
+    private string statusFilter = string.Empty;
+    private bool isLoading = true;
+    private System.Threading.Timer? autoRefreshTimer;
+    
+    // Filtered consultations based on search and status filter
+    private IEnumerable<ConsultationDto> FilteredConsultations => consultations
+        .Where(c => string.IsNullOrWhiteSpace(searchTerm) || 
+                     c.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                     (c.StudentName != null && c.StudentName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                     (c.Topic != null && c.Topic.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+        .Where(c => string.IsNullOrWhiteSpace(statusFilter) || c.Status == statusFilter)
+        .OrderByDescending(c => c.ScheduledAt);
+    
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch consultations from the API
+        await LoadConsultationsAsync();
+        
+        // Setup a refresh timer to periodically update the consultations
+        autoRefreshTimer = new System.Threading.Timer(async _ => 
+        {
+            await LoadConsultationsAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+    }
+    
+    private async Task LoadConsultationsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            consultations = (await ConsultationService.GetTeacherConsultationsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowErrorAsync("Failed to load consultations", "Error");
+            Console.Error.WriteLine($"Error loading consultations: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Scheduled" => "bg-blue-100 text-blue-800",
+            "Completed" => "bg-green-100 text-green-800",
+            "Cancelled" => "bg-red-100 text-red-800",
+            "Pending" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+    
+    private async Task CancelConsultation(Guid consultationId)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to cancel this consultation?");
+        
+        if (confirmed)
+        {
+            try
+            {
+                bool success = await ConsultationService.CancelConsultationAsync(consultationId);
+                
+                if (success)
+                {
+                    await ToastService.ShowSuccessAsync("Consultation cancelled successfully", "Success");
+                    await LoadConsultationsAsync(); // Reload the list to show updated status
+                }
+                else
+                {
+                    await ToastService.ShowErrorAsync("Failed to cancel consultation", "Error");
+                }
+            }
+            catch (Exception ex)
+            {
+                await ToastService.ShowErrorAsync($"An error occurred: {ex.Message}", "Error");
+                Console.Error.WriteLine($"Error cancelling consultation: {ex}");
+            }
+        }
+    }
+    
+    private void StartConsultation(Guid consultationId)
+    {
+        NavigationManager.NavigateTo($"/consultation/start/{consultationId}");
+    }
+    
+    private void NavigateToMaterials(Guid consultationId)
+    {
+        NavigationManager.NavigateTo($"/materials/upload/{consultationId}");
+    }
+    
+    public void Dispose()
+    {
+        // Dispose the timer to prevent memory leaks
+        autoRefreshTimer?.Dispose();
+    }
+}

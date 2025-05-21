@@ -1,0 +1,25 @@
+{
+  "name": "blazorclient",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "postcss wwwroot/css/notion-theme.css -o wwwroot/css/app.css --watch",
+    "build:css:prod": "postcss wwwroot/css/notion-theme.css -o wwwroot/css/app.css --env production",
+    "tailwind:watch": "tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/css/app.css --watch",
+    "postinstall": "mkdir -p wwwroot/lib/toastr && cp node_modules/toastr/build/toastr.min.js wwwroot/lib/toastr/ && cp node_modules/toastr/build/toastr.min.css wwwroot/lib/toastr/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "postcss-cli": "^11.0.0",
+    "tailwindcss": "^3.4.17"
+  },
+  "dependencies": {
+    "toastr": "^2.1.4"
+  }
+}

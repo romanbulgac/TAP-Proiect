@@ -1,56 +1,43 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace DataAccess.Models;
-
-public sealed class Consultation : AuditEntity
+namespace DataAccess.Models
 {
-    public enum Status
+    public class Consultation
     {
-        Scheduled,
-        Completed,
-        Cancelled
+
+        public Guid Id { get; set; }
+        public string Topic { get; set; } = string.Empty;
+        public DateTime ScheduledAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public DateTime? CancelledAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
+
+        public string? Description { get; set; }
+        public bool IsCancelled { get; set; }
+        public bool IsDeleted { get; set; }
+        public bool IsCompleted { get; set; }
+        public required Teacher Teacher { get; set; }
+        public Guid TeacherId { get; set; }
+        public int DurationMinutes { get; set; }
+        public DateTime CreatedAt { get; internal set; }
+        public string ConsultationStatus { get { return GetStatusDisplay(); } set { } }
+        public Type ConsultationType { get; internal set; }
+        public string ConsultationLink { get; internal set; } = string.Empty;
+        public List<Material> Materials { get;  set; } = new List<Material>();
+        public List<ConsultationStudent> StudentLinks { get;  set; } = new List<ConsultationStudent>();
+        public List<Review> Reviews { get;  set; } = new List<Review>();
+
+        public string GetStatusDisplay() =>
+            IsCancelled ? "Cancelled" :
+            IsCompleted ? "Completed" :
+            ScheduledAt < DateTime.Now ? "Past" : "Upcoming";
+           
+        public enum Type
+        {
+            Group,
+            Individual
+        }
     }
-    public enum Type
-    {
-        Individual,
-        Group
-    }
-    private readonly HashSet<ConsultationStudent> _studentLinks = new();
-    private readonly HashSet<Material> _materials = new();
-    private readonly HashSet<Review> _reviews = new();
-
-    [Key]
-    public Guid Id { get; private set; } = Guid.NewGuid();
-
-    [Required, MaxLength(200)]
-    public string Topic { get; set; } = string.Empty;
-
-    [MaxLength(1000)]
-    public string? Description { get; set; }
-
-    public DateTime ScheduledAt { get; set; }
-
-    public int DurationMinutes { get; set; }
-
-    public Status ConsultationStatus { get; set; } = Status.Scheduled;
-    public Type ConsultationType { get; set; } = Type.Individual;
-
-    public string ConsultationLink { get; set; } = string.Empty;
-    public string? Notes { get; set; } = null;
-
-    [Required]
-    public Guid TeacherId { get; set; }
-    public Teacher Teacher { get; set; } = null!;
-
-    [InverseProperty(nameof(ConsultationStudent.Consultation))]
-    public IReadOnlyCollection<ConsultationStudent> StudentLinks => _studentLinks;
-
-    /// <summary>Материалы, прикреплённые к сессии.</summary>
-    public IReadOnlyCollection<Material> Materials => _materials;
-
-    /// <summary>Отзывы студентов о данной сессии.</summary>
-    public IReadOnlyCollection<Review> Reviews => _reviews;
 }

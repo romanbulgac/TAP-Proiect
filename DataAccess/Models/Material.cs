@@ -7,7 +7,7 @@ namespace DataAccess.Models;
 public sealed class Material : AuditEntity
 {
     [Key]
-    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid(); // Changed private set to set or init
 
     [Required, MaxLength(200)]
     public string Title { get; set; } = string.Empty;

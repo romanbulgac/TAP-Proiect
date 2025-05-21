@@ -17,10 +17,311 @@ namespace DataAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "8.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("DataAccess.Models.Consultation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ConsultationLink")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConsultationStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ConsultationType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("TeacherId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("Consultations");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.ConsultationStudent", b =>
+                {
+                    b.Property<Guid>("ConsultationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Attended")
+                        .HasColumnType("bit");
+
+                    b.HasKey("ConsultationId", "StudentId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("ConsultationStudents");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Material", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ConsultationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("FileType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ResourceUri")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TeacherId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsultationId");
+
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("Materials");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("5fbf3cfd-d292-4f03-9f3d-9d332054b84a"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7830),
+                            Description = "Basic concepts of algebra.",
+                            FileType = "PDF",
+                            IsDeleted = false,
+                            ResourceUri = "/materials/algebra_intro.pdf",
+                            TeacherId = new Guid("e3527241-65d0-49bd-98fb-048e248c94b6"),
+                            Title = "Introduction to Algebra",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7830)
+                        },
+                        new
+                        {
+                            Id = new Guid("b3e8ae8f-a401-4a49-9c97-ea48b078e3ec"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7830),
+                            Description = "Quick reference for calculus formulas.",
+                            FileType = "PDF",
+                            IsDeleted = false,
+                            ResourceUri = "/materials/calculus_cheatsheet.pdf",
+                            TeacherId = new Guid("e3527241-65d0-49bd-98fb-048e248c94b6"),
+                            Title = "Calculus Cheat Sheet",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7840)
+                        });
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ConsultationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsultationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("ConsultationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReviewDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsultationId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("SubscribedToTeacherId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SubscriptionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubscriptionType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscribedToTeacherId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Subscriptions");
+                });
 
             modelBuilder.Entity("DataAccess.Models.TestModel", b =>
                 {
@@ -28,17 +329,497 @@ namespace DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.ToTable("TestModels");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastLogin")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProfilePicture")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("State")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ZipCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("User");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("DataAccess.Models.UserAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserAccounts");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("0d03f101-1e17-4bd3-9c9d-f374ca95a66f"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4900),
+                            IsDeleted = false,
+                            PasswordHash = "$2a$11$tnWLt0NwB0z/MEUkqCtd/.tO.R3iDjkwUxP3RSO4r6uOaAKF0b57O",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4900),
+                            UserId = new Guid("50736532-e657-4d4e-98ae-26c0c977e54a"),
+                            UserName = "admin@example.com"
+                        },
+                        new
+                        {
+                            Id = new Guid("e7fa046d-18db-4c76-9f19-414036ed1ce0"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6770),
+                            IsDeleted = false,
+                            PasswordHash = "$2a$11$rwIbnIxORKdEcTWjz9WxO.WxtvPnTxPRlDTxj8vrFquH/DrvNZV2G",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6770),
+                            UserId = new Guid("e3527241-65d0-49bd-98fb-048e248c94b6"),
+                            UserName = "teacher@example.com"
+                        },
+                        new
+                        {
+                            Id = new Guid("b4dea876-e707-4592-9445-e37ef691feb6"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7800),
+                            IsDeleted = false,
+                            PasswordHash = "$2a$11$yRn3rWWiYVZLufi/g1TlDeZBlDakW9Tg.FI1YRVmh6aSLVMI70ODu",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7800),
+                            UserId = new Guid("9bb8703c-e732-4ad5-99ab-dc4fc63d6a43"),
+                            UserName = "student@example.com"
+                        });
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Admin", b =>
+                {
+                    b.HasBaseType("DataAccess.Models.User");
+
+                    b.Property<string>("AccessLevel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("HireDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Permissions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Responsibilities")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("YearsOfExperience")
+                        .HasColumnType("int");
+
+                    b.ToTable("Users", t =>
+                        {
+                            t.Property("Department")
+                                .HasColumnName("Admin_Department");
+
+                            t.Property("HireDate")
+                                .HasColumnName("Admin_HireDate");
+
+                            t.Property("YearsOfExperience")
+                                .HasColumnName("Admin_YearsOfExperience");
+                        });
+
+                    b.HasDiscriminator().HasValue("Admin");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("50736532-e657-4d4e-98ae-26c0c977e54a"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4730),
+                            Email = "admin@example.com",
+                            IsActive = true,
+                            IsDeleted = false,
+                            LastLogin = new DateTime(2025, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4730),
+                            Name = "Admin",
+                            Role = "Administrator",
+                            Surname = "User",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4730),
+                            AccessLevel = "Full",
+                            Department = "IT",
+                            HireDate = new DateTime(2024, 5, 21, 16, 45, 23, 524, DateTimeKind.Utc).AddTicks(4730),
+                            Permissions = "All",
+                            Responsibilities = "System Administration",
+                            YearsOfExperience = 1
+                        });
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Student", b =>
+                {
+                    b.HasBaseType("DataAccess.Models.User");
+
+                    b.Property<DateTime>("EnrollmentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("GPA")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Major")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Minor")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("TeacherId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("YearOfStudy")
+                        .HasColumnType("int");
+
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("Users");
+
+                    b.HasDiscriminator().HasValue("Student");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("9bb8703c-e732-4ad5-99ab-dc4fc63d6a43"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7760),
+                            Email = "student@example.com",
+                            IsActive = true,
+                            IsDeleted = false,
+                            LastLogin = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7750),
+                            Name = "Jane",
+                            Role = "Student",
+                            Surname = "Smith",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7760),
+                            EnrollmentDate = new DateTime(2024, 11, 21, 16, 45, 23, 746, DateTimeKind.Utc).AddTicks(7750),
+                            GPA = 0.0,
+                            Major = "Computer Science",
+                            Minor = "",
+                            Status = "Active",
+                            YearOfStudy = 1
+                        });
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Teacher", b =>
+                {
+                    b.HasBaseType("DataAccess.Models.User");
+
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("HireDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("YearsOfExperience")
+                        .HasColumnType("int");
+
+                    b.ToTable("Users");
+
+                    b.HasDiscriminator().HasValue("Teacher");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e3527241-65d0-49bd-98fb-048e248c94b6"),
+                            CreatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6690),
+                            Email = "teacher@example.com",
+                            IsActive = true,
+                            IsDeleted = false,
+                            LastLogin = new DateTime(2025, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6690),
+                            Name = "John",
+                            Role = "Teacher",
+                            Surname = "Doe",
+                            UpdatedAt = new DateTime(2025, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6690),
+                            Department = "Science",
+                            HireDate = new DateTime(2023, 5, 21, 16, 45, 23, 634, DateTimeKind.Utc).AddTicks(6690),
+                            Subject = "Mathematics",
+                            YearsOfExperience = 5
+                        });
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Consultation", b =>
+                {
+                    b.HasOne("DataAccess.Models.Teacher", "Teacher")
+                        .WithMany("Consultations")
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.ConsultationStudent", b =>
+                {
+                    b.HasOne("DataAccess.Models.Consultation", "Consultation")
+                        .WithMany("StudentLinks")
+                        .HasForeignKey("ConsultationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DataAccess.Models.Student", "Student")
+                        .WithMany("ConsultationLinks")
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Consultation");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Material", b =>
+                {
+                    b.HasOne("DataAccess.Models.Consultation", "Consultation")
+                        .WithMany("Materials")
+                        .HasForeignKey("ConsultationId");
+
+                    b.HasOne("DataAccess.Models.Teacher", "Teacher")
+                        .WithMany()
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Consultation");
+
+                    b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Notification", b =>
+                {
+                    b.HasOne("DataAccess.Models.Consultation", "Consultation")
+                        .WithMany()
+                        .HasForeignKey("ConsultationId");
+
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Consultation");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Review", b =>
+                {
+                    b.HasOne("DataAccess.Models.Consultation", "Consultation")
+                        .WithMany("Reviews")
+                        .HasForeignKey("ConsultationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DataAccess.Models.Student", "Student")
+                        .WithMany("ReviewsWritten")
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Consultation");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Subscription", b =>
+                {
+                    b.HasOne("DataAccess.Models.Teacher", "SubscribedToTeacher")
+                        .WithMany()
+                        .HasForeignKey("SubscribedToTeacherId");
+
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SubscribedToTeacher");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.UserAccount", b =>
+                {
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithOne("UserAccount")
+                        .HasForeignKey("DataAccess.Models.UserAccount", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Student", b =>
+                {
+                    b.HasOne("DataAccess.Models.Teacher", "Teacher")
+                        .WithMany()
+                        .HasForeignKey("TeacherId");
+
+                    b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Consultation", b =>
+                {
+                    b.Navigation("Materials");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("StudentLinks");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.User", b =>
+                {
+                    b.Navigation("Notifications");
+
+                    b.Navigation("Subscriptions");
+
+                    b.Navigation("UserAccount");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Student", b =>
+                {
+                    b.Navigation("ConsultationLinks");
+
+                    b.Navigation("ReviewsWritten");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Teacher", b =>
+                {
+                    b.Navigation("Consultations");
                 });
 #pragma warning restore 612, 618
         }

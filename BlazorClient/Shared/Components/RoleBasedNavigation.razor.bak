@@ -1,0 +1,160 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using System.Security.Claims
+@using BlazorClient.Services
+
+<AuthorizeView Context="mainContext">
+    <Authorized Context="mainContext">
+        @* Common navigation items for all authenticated users *@
+        <a href="/" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+            <span class="w-6 text-center">🏠</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Dashboard</span>
+            }
+        </a>
+        
+        <a href="/profile" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+            <span class="w-6 text-center">👤</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Profile</span>
+            }
+        </a>
+        
+        <a href="/notifications" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+            <span class="w-6 text-center">🔔</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Notifications</span>
+            }
+        </a>
+        
+        @* Student specific navigation items *@
+        <AuthorizeView Roles="Student" Context="studentContext">
+            <Authorized Context="studentContext">
+                <a href="/consultations" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">📚</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">My Consultations</span>
+                    }
+                </a>
+                
+                <a href="/bookings" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">📅</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Book Consultation</span>
+                    }
+                </a>
+                
+                <a href="/materials" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">📄</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Learning Materials</span>
+                    }
+                </a>
+            </Authorized>
+        </AuthorizeView>
+        
+        @* Teacher specific navigation items *@
+        <AuthorizeView Roles="Teacher" Context="teacherContext">
+            <Authorized Context="teacherContext">
+                <a href="/my-consultations" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">👨‍🏫</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">My Sessions</span>
+                    }
+                </a>
+                
+                <a href="/schedule" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">🗓️</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Availability</span>
+                    }
+                </a>
+                
+                <a href="/my-materials" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">📋</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">My Materials</span>
+                    }
+                </a>
+            </Authorized>
+        </AuthorizeView>
+        
+        @* Admin specific navigation items *@
+        <AuthorizeView Roles="Admin" Context="adminContext">
+            <Authorized Context="adminContext">
+                <a href="/users" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">👥</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Users</span>
+                    }
+                </a>
+                
+                <a href="/reports" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">📊</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Reports</span>
+                    }
+                </a>
+                
+                <a href="/settings" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+                    <span class="w-6 text-center">⚙️</span>
+                    @if (!Collapsed)
+                    {
+                        <span class="ml-2">Settings</span>
+                    }
+                </a>
+            </Authorized>
+        </AuthorizeView>
+        
+        <button @onclick="Logout" class="flex items-center p-2 hover:bg-notion-hover-light rounded w-full text-left">
+            <span class="w-6 text-center">🚪</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Logout</span>
+            }
+        </button>
+    </Authorized>
+    <NotAuthorized>
+        <a href="/login" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+            <span class="w-6 text-center">🔑</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Login</span>
+            }
+        </a>
+        
+        <a href="/register" class="flex items-center p-2 hover:bg-notion-hover-light rounded">
+            <span class="w-6 text-center">📝</span>
+            @if (!Collapsed)
+            {
+                <span class="ml-2">Register</span>
+            }
+        </a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public bool Collapsed { get; set; }
+    
+    [Parameter]
+    public EventCallback OnLogout { get; set; }
+    
+    private Task Logout()
+    {
+        return OnLogout.InvokeAsync();
+    }
+}

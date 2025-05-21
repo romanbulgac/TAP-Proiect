@@ -1,81 +1,172 @@
+// filepath: /Users/romanbulgac/Documents/University/Semestru VI/TAP/Proiect/BusinessLayer/Implementations/AuthenticationService.cs
 using BusinessLayer.Interfaces;
-using BusinessLayer.DTOs; // Assuming LoginRequestDto, LoginResponseDto are here
-using DataAccess;
-using DataAccess.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
+using BusinessLayer.DTOs;
+using DataAccess.Models; // Required for User model (returned by IUserService)
 using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
-using BCrypt.Net; // Add this line
+using BCrypt.Net; // Added for password hashing
+using System.Security.Claims; // Added for ClaimTypes
+using System.Linq; // Added for LINQ operations like FirstOrDefault
 
 namespace BusinessLayer.Implementations
 {
     public class AuthenticationService : IAuthenticationService
     {
-        private readonly MyDbContext _context;
-        private readonly IConfiguration _configuration;
-        // No longer needs IUserFactory directly for user creation part of Register
+        private readonly IUserService _userService;
+        private readonly ITokenService _tokenService;
 
-        public AuthenticationService(MyDbContext context, IConfiguration configuration)
+        public AuthenticationService(IUserService userService, ITokenService tokenService)
         {
-            _context = context;
-            _configuration = configuration;
+            _userService = userService;
+            _tokenService = tokenService;
         }
 
-        public async Task<string?> LoginAsync(string email, string password)
+        public async Task<AuthenticationResultDto> LoginAsync(LoginRequestDto loginRequestDto)
         {
-            var userAccount = await _context.UserAccounts
-                                    .Include(ua => ua.User) // Include User to get Role
-                                    .FirstOrDefaultAsync(ua => ua.User != null && ua.User.Email == email);
-
-            if (userAccount == null || userAccount.User == null)
+            var user = await _userService.GetUserByEmailAsync(loginRequestDto.Email);
+            if (user == null)
             {
-                return null; // User not found
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "User not found." };
             }
 
-            if (!BCrypt.Net.BCrypt.Verify(password, userAccount.PasswordHash))
+            var isPasswordValid = await _userService.CheckPasswordAsync(user, loginRequestDto.Password);
+            if (!isPasswordValid)
             {
-                return null; // Invalid password
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "Invalid password." };
             }
 
-            // Generate JWT
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var keyString = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
-            var key = Encoding.ASCII.GetBytes(keyString);
-
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, userAccount.User.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, userAccount.User.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique token ID
-                new Claim(ClaimTypes.Role, userAccount.User.Role)
-                // Add other claims as needed
-            };
+            var token = _tokenService.GenerateJwtToken(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
             
-            // Add name claim if available
-            if (!string.IsNullOrEmpty(userAccount.User.Name) && !string.IsNullOrEmpty(userAccount.User.Surname))
-            {
-                claims.Add(new Claim(ClaimTypes.Name, $"{userAccount.User.Name} {userAccount.User.Surname}"));
-            }
+            // Store refresh token in database
+            var refreshTokenExpiryTime = DateTime.UtcNow.AddDays(_tokenService.GetRefreshTokenValidityInDays());
+            await _userService.SetRefreshTokenAsync(user.Id, refreshToken, refreshTokenExpiryTime);
 
-
-            var tokenDescriptor = new SecurityTokenDescriptor
+            return new AuthenticationResultDto
             {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(1), // Token expiration
-                Issuer = _configuration["Jwt:Issuer"],
-                Audience = _configuration["Jwt:Audience"],
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                IsSuccess = true,
+                Token = token,
+                RefreshToken = refreshToken,
+                User = new UserDto 
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    Name = user.Name,
+                    Surname = user.Surname,
+                    Role = user.Role
+                }
             };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
         }
 
-        // Register method is removed from here and moved to UserService
-        // CreateUser factory method is removed from here, belongs to UserFactory
+        public async Task<AuthenticationResultDto> RegisterAsync(RegisterRequestDto registerRequestDto)
+        {
+            var existingUser = await _userService.GetUserByEmailAsync(registerRequestDto.Email);
+            if (existingUser != null)
+            {
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "User with this email already exists." };
+            }
+            
+            try
+            {
+                // UserService now handles password hashing
+                var createdUser = await _userService.CreateUserAsync(registerRequestDto);
+                if (createdUser == null)
+                {
+                     return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "User registration failed." };
+                }
+
+                var token = _tokenService.GenerateJwtToken(createdUser);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+                
+                // Store refresh token in database
+                var refreshTokenExpiryTime = DateTime.UtcNow.AddDays(_tokenService.GetRefreshTokenValidityInDays());
+                await _userService.SetRefreshTokenAsync(createdUser.Id, refreshToken, refreshTokenExpiryTime);
+
+                return new AuthenticationResultDto
+                {
+                    IsSuccess = true,
+                    Token = token,
+                    RefreshToken = refreshToken,
+                    User = new UserDto
+                    {
+                        Id = createdUser.Id,
+                        Email = createdUser.Email,
+                        Name = createdUser.Name,
+                        Surname = createdUser.Surname,
+                        Role = createdUser.Role
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                // TODO: Replace with proper logging (e.g., Serilog)
+                Console.WriteLine($"Error during registration: {ex.Message} StackTrace: {ex.StackTrace}"); 
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "An error occurred during registration." };
+            }
+        }
+        
+        public async Task<AuthenticationResultDto> RefreshTokenAsync(TokenRequestDto tokenRequestDto)
+        {
+            var principal = _tokenService.GetPrincipalFromExpiredToken(tokenRequestDto.Token);
+            if (principal == null)
+            {
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "Invalid access token" };
+            }
+
+            var userIdClaim = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out Guid userId))
+            {
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "Invalid token claim" };
+            }
+
+            // Validate refresh token
+            var (isValid, user) = await _userService.ValidateRefreshTokenAsync(tokenRequestDto.RefreshToken);
+            if (!isValid || user == null || user.Id != userId)
+            {
+                return new AuthenticationResultDto { IsSuccess = false, ErrorMessage = "Invalid refresh token" };
+            }
+
+            // Generate new tokens
+            var newToken = _tokenService.GenerateJwtToken(user);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+            
+            // Update refresh token in database
+            var refreshTokenExpiryTime = DateTime.UtcNow.AddDays(_tokenService.GetRefreshTokenValidityInDays());
+            await _userService.SetRefreshTokenAsync(user.Id, newRefreshToken, refreshTokenExpiryTime);
+
+            return new AuthenticationResultDto
+            {
+                IsSuccess = true,
+                Token = newToken,
+                RefreshToken = newRefreshToken,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    Name = user.Name,
+                    Surname = user.Surname,
+                    Role = user.Role
+                }
+            };
+        }
+
+        public async Task<bool> RevokeTokenAsync(string refreshToken)
+        {
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return false;
+            }
+
+            // Validate refresh token and get the associated user
+            var (isValid, user) = await _userService.ValidateRefreshTokenAsync(refreshToken);
+            if (!isValid || user == null)
+            {
+                return false;
+            }
+
+            // Invalidate token by setting it to empty string instead of null
+            await _userService.SetRefreshTokenAsync(user.Id, string.Empty, DateTime.UtcNow);
+            return true;
+        }
     }
 }

@@ -17,13 +17,21 @@ public sealed class Notification : AuditEntity
 
     [Required, MaxLength(500)]
     public string Message { get; set; } = string.Empty;
+    
+    [MaxLength(200)]
     public string Title { get; set; } = string.Empty;
-
+    
     public bool IsRead { get; set; } = false;
 
-    public DateTime NotificationDate { get; set; } = DateTime.UtcNow;
+    [MaxLength(50)]
+    public string NotificationType { get; set; } = "System";
+
+    public Guid? ConsultationId { get; set; }
+    [ForeignKey("ConsultationId")]
+    public Consultation? Consultation { get; set; }
+
+    public DateTime SentAt { get; set; } = DateTime.UtcNow;
 
     [MaxLength(255)]
     public string? Link { get; set; } // Optional link for the notification
-    public DateTime SentAt { get; set; }
 }

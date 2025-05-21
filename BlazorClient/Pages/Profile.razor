@@ -1,0 +1,165 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Components.Authorization
+@using BusinessLayer.DTOs
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+
+<div class="pb-6">
+    <h1 class="text-2xl font-semibold mb-4">My Profile</h1>
+    
+    <AuthorizeView>
+        <Authorized>
+            @if (user != null)
+            {
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Profile Card -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white shadow rounded-lg p-6">
+                            <div class="flex flex-col items-center space-y-4">
+                                <div class="relative">
+                                    @if (string.IsNullOrEmpty(user.ProfilePicture))
+                                    {
+                                        <div class="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center text-4xl text-blue-500 font-bold">
+                                            @(user.Name?.Length > 0 ? user.Name[0].ToString().ToUpper() : "U")
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <img src="@user.ProfilePicture" alt="Profile" class="w-32 h-32 rounded-full object-cover" />
+                                    }
+                                    <button class="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-2 shadow-md hover:bg-blue-700 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <h2 class="text-xl font-semibold">@user.Name @user.Surname</h2>
+                                <p class="text-gray-500">@user.Email</p>
+                                <div class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                                    @user.Role
+                                </div>
+                                <p class="text-sm text-gray-500">Member since @user.CreatedAt.ToString("MMM d, yyyy")</p>
+                                <p class="text-sm text-gray-500">Last login: @user.LastLogin.ToString("MMM d, yyyy")</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User Details -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white shadow rounded-lg p-6">
+                            <h3 class="text-lg font-medium mb-4">Personal Information</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <input type="text" id="name" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.Name" />
+                                </div>
+                                <div>
+                                    <label for="surname" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input type="text" id="surname" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.Surname" />
+                                </div>
+                                <div>
+                                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                    <input type="tel" id="phone" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.PhoneNumber" />
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                    <input type="email" id="email" readonly class="block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm" 
+                                           @bind="user.Email" />
+                                </div>
+                            </div>
+                            
+                            <h3 class="text-lg font-medium mt-8 mb-4">Address</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-2">
+                                    <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                                    <input type="text" id="address" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.Address" />
+                                </div>
+                                <div>
+                                    <label for="city" class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                    <input type="text" id="city" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.City" />
+                                </div>
+                                <div>
+                                    <label for="state" class="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                                    <input type="text" id="state" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.State" />
+                                </div>
+                                <div>
+                                    <label for="zipCode" class="block text-sm font-medium text-gray-700 mb-1">Zip/Postal Code</label>
+                                    <input type="text" id="zipCode" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.ZipCode" />
+                                </div>
+                                <div>
+                                    <label for="country" class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                    <input type="text" id="country" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                           @bind="user.Country" />
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 flex justify-end">
+                                <button @onclick="SaveChanges" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="flex justify-center items-center h-64">
+                    <div class="p-4 bg-blue-50 text-blue-700 rounded-md">
+                        Loading user profile...
+                    </div>
+                </div>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                You need to be logged in to view your profile.
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private UserDto? user;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated ?? false)
+        {
+            // In a real app, you'd fetch this from your API
+            // For demo purposes, we'll create a sample user
+            user = new UserDto
+            {
+                Id = Guid.Parse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? Guid.NewGuid().ToString()),
+                Name = authState.User.FindFirst(ClaimTypes.GivenName)?.Value ?? "John",
+                Surname = authState.User.FindFirst(ClaimTypes.Surname)?.Value ?? "Doe",
+                Email = authState.User.FindFirst(ClaimTypes.Email)?.Value ?? "john.doe@example.com",
+                Role = authState.User.FindFirst(ClaimTypes.Role)?.Value ?? "Student",
+                PhoneNumber = authState.User.FindFirst(ClaimTypes.MobilePhone)?.Value,
+                Address = "123 Main St",
+                City = "Springfield",
+                State = "IL",
+                Country = "United States",
+                ZipCode = "62704",
+                CreatedAt = DateTime.Now.AddMonths(-6),
+                LastLogin = DateTime.Now.AddDays(-2)
+            };
+        }
+    }
+    
+    private async Task SaveChanges()
+    {
+        // In a real app, you'd call your API to update the user
+        await JSRuntime.InvokeVoidAsync("alert", "Profile changes saved successfully!");
+    }
+}

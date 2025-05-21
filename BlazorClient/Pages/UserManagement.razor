@@ -1,0 +1,402 @@
+@page "/users"
+@using BusinessLayer.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IJSRuntime JSRuntime
+
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-semibold">User Management</h1>
+    
+    <div class="mt-4 sm:mt-0 flex items-center space-x-3">
+        <div class="relative">
+            <input type="text" 
+                   @bind="searchTerm" 
+                   @bind:event="oninput" 
+                   placeholder="Search users..." 
+                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+        
+        <select @bind="roleFilter" class="py-2 pl-3 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Roles</option>
+            <option value="Admin">Admin</option>
+            <option value="Teacher">Teacher</option>
+            <option value="Student">Student</option>
+        </select>
+        
+        <button @onclick="OpenCreateUserModal" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add User
+        </button>
+    </div>
+</div>
+
+<div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @if (FilteredUsers.Any())
+                {
+                    @foreach (var user in FilteredUsers)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        @if (string.IsNullOrEmpty(user.ProfilePicture))
+                                        {
+                                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                                                @GetUserInitials(user)
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <img class="h-10 w-10 rounded-full" src="@user.ProfilePicture" alt="@user.Name" />
+                                        }
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">@user.Name @user.Surname</div>
+                                        <div class="text-sm text-gray-500">ID: @user.Id.ToString().Substring(0, 8)</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">@user.Email</div>
+                                <div class="text-xs text-gray-500">@(user.PhoneNumber ?? "No phone")</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full @GetRoleBadgeClass(user.Role)">
+                                    @user.Role
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="@(user.IsActive ? "text-green-800 bg-green-100" : "text-red-800 bg-red-100") px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                    @(user.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @user.CreatedAt.ToString("MMM d, yyyy")
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex items-center justify-end space-x-2">
+                                    <button @onclick="() => EditUser(user)" class="text-blue-600 hover:text-blue-900 rounded-md px-2 py-1 hover:bg-blue-50">Edit</button>
+                                    <button @onclick="() => ToggleUserStatus(user)" class="@(user.IsActive ? "text-red-600 hover:text-red-900 hover:bg-red-50" : "text-green-600 hover:text-green-900 hover:bg-green-50") rounded-md px-2 py-1">
+                                        @(user.IsActive ? "Deactivate" : "Activate")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <p class="text-gray-500 font-medium mb-1">No users found</p>
+                                <p class="text-gray-400 text-sm">Try different search criteria or add a new user.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (showUserModal)
+{
+    <div class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @onclick="CloseModal"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
+                                @(isEditingUser ? "Edit User" : "Add New User")
+                            </h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <input type="text" id="firstName" @bind="editingUser.Name" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                                
+                                <div>
+                                    <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input type="text" id="lastName" @bind="editingUser.Surname" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" id="email" @bind="editingUser.Email" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                                
+                                <div>
+                                    <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                    <select id="role" @bind="editingUser.Role" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="Admin">Admin</option>
+                                        <option value="Teacher">Teacher</option>
+                                        <option value="Student">Student</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                    <input type="tel" id="phone" @bind="editingUser.PhoneNumber" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                                
+                                @if (!isEditingUser)
+                                {
+                                    <div class="md:col-span-2">
+                                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                        <input type="password" id="password" @bind="password" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                                    </div>
+                                }
+                                
+                                <div class="md:col-span-2 flex items-center">
+                                    <input type="checkbox" id="isActive" @bind="editingUser.IsActive" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                                    <label for="isActive" class="ml-2 block text-sm text-gray-900">Active Account</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button @onclick="SaveUser" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        @(isEditingUser ? "Update User" : "Add User")
+                    </button>
+                    <button @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserDto> users = new List<UserDto>();
+    private string searchTerm = string.Empty;
+    private string roleFilter = string.Empty;
+    private bool showUserModal = false;
+    private bool isEditingUser = false;
+    private UserDto editingUser = new UserDto();
+    private string password = string.Empty;
+    
+    private IEnumerable<UserDto> FilteredUsers => users
+        .Where(u => string.IsNullOrWhiteSpace(searchTerm) || 
+                     u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                     u.Surname.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                     u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        .Where(u => string.IsNullOrWhiteSpace(roleFilter) || u.Role == roleFilter)
+        .OrderBy(u => u.Name);
+    
+    protected override void OnInitialized()
+    {
+        // In a real app, you'd call your API to get the users
+        // For demo purposes, we'll create some sample users
+        users = new List<UserDto>
+        {
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "John",
+                Surname = "Smith",
+                Email = "john.smith@university.edu",
+                Role = "Admin",
+                IsActive = true,
+                CreatedAt = DateTime.Now.AddMonths(-6),
+                PhoneNumber = "(555) 123-4567"
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sarah",
+                Surname = "Johnson",
+                Email = "sarah.johnson@university.edu",
+                Role = "Teacher",
+                IsActive = true,
+                CreatedAt = DateTime.Now.AddMonths(-4),
+                PhoneNumber = "(555) 234-5678"
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "Michael",
+                Surname = "Brown",
+                Email = "michael.brown@university.edu",
+                Role = "Teacher", 
+                IsActive = true,
+                CreatedAt = DateTime.Now.AddMonths(-3),
+                PhoneNumber = "(555) 345-6789"
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "Emily",
+                Surname = "Davis",
+                Email = "emily.davis@university.edu",
+                Role = "Student",
+                IsActive = true,
+                CreatedAt = DateTime.Now.AddMonths(-2),
+                PhoneNumber = "(555) 456-7890"
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "David",
+                Surname = "Wilson",
+                Email = "david.wilson@university.edu",
+                Role = "Student",
+                IsActive = false,
+                CreatedAt = DateTime.Now.AddMonths(-1),
+                PhoneNumber = "(555) 567-8901"
+            }
+        };
+    }
+    
+    private string GetUserInitials(UserDto user)
+    {
+        return (!string.IsNullOrEmpty(user.Name) && !string.IsNullOrEmpty(user.Surname))
+            ? $"{user.Name[0]}{user.Surname[0]}"
+            : (!string.IsNullOrEmpty(user.Name) ? user.Name[0].ToString() : "U");
+    }
+    
+    private string GetRoleBadgeClass(string role)
+    {
+        return role switch
+        {
+            "Admin" => "bg-purple-100 text-purple-800",
+            "Teacher" => "bg-blue-100 text-blue-800",
+            "Student" => "bg-green-100 text-green-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+    
+    private void OpenCreateUserModal()
+    {
+        editingUser = new UserDto
+        {
+            Id = Guid.NewGuid(),
+            IsActive = true,
+            Role = "Student",
+            CreatedAt = DateTime.Now
+        };
+        isEditingUser = false;
+        password = string.Empty;
+        showUserModal = true;
+    }
+    
+    private void EditUser(UserDto user)
+    {
+        // Clone the user so we don't modify the original until save
+        editingUser = new UserDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Surname = user.Surname,
+            Email = user.Email,
+            Role = user.Role,
+            IsActive = user.IsActive,
+            PhoneNumber = user.PhoneNumber,
+            CreatedAt = user.CreatedAt
+        };
+        isEditingUser = true;
+        showUserModal = true;
+    }
+    
+    private async Task SaveUser()
+    {
+        // Validate required fields
+        if (string.IsNullOrWhiteSpace(editingUser.Name) || 
+            string.IsNullOrWhiteSpace(editingUser.Surname) || 
+            string.IsNullOrWhiteSpace(editingUser.Email))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please fill in all required fields.");
+            return;
+        }
+        
+        if (!isEditingUser && string.IsNullOrWhiteSpace(password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please enter a password for the new user.");
+            return;
+        }
+        
+        // In a real app, you'd call your API to create/update the user
+        if (isEditingUser)
+        {
+            // Update existing user
+            var existingUser = users.FirstOrDefault(u => u.Id == editingUser.Id);
+            if (existingUser != null)
+            {
+                existingUser.Name = editingUser.Name;
+                existingUser.Surname = editingUser.Surname;
+                existingUser.Email = editingUser.Email;
+                existingUser.Role = editingUser.Role;
+                existingUser.IsActive = editingUser.IsActive;
+                existingUser.PhoneNumber = editingUser.PhoneNumber;
+                existingUser.UpdatedAt = DateTime.Now;
+                
+                await JSRuntime.InvokeVoidAsync("showToast", "Success", "User updated successfully", "success");
+            }
+        }
+        else
+        {
+            // Create new user
+            editingUser.CreatedAt = DateTime.Now;
+            users.Add(editingUser);
+            
+            await JSRuntime.InvokeVoidAsync("showToast", "Success", "User created successfully", "success");
+        }
+        
+        CloseModal();
+    }
+    
+    private void CloseModal()
+    {
+        showUserModal = false;
+    }
+    
+    private async Task ToggleUserStatus(UserDto user)
+    {
+        // Confirm before deactivating a user
+        if (user.IsActive)
+        {
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to deactivate {user.Name} {user.Surname}?");
+            if (!confirmed) return;
+        }
+        
+        // In a real app, you'd call your API to toggle the user's status
+        user.IsActive = !user.IsActive;
+        user.UpdatedAt = DateTime.Now;
+        
+        string message = user.IsActive 
+            ? $"{user.Name} {user.Surname} has been activated" 
+            : $"{user.Name} {user.Surname} has been deactivated";
+            
+        await JSRuntime.InvokeVoidAsync("showToast", "User Status Updated", message, user.IsActive ? "success" : "warning");
+    }
+}

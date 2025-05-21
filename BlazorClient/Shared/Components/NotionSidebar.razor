@@ -1,0 +1,130 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using BlazorClient.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="@GetSidebarClasses()">
+    <div class="flex flex-col h-full">
+        <div class="flex h-16 shrink-0 items-center px-6">
+            <a href="/" class="text-xl font-semibold text-notion-text-light dark:text-notion-text-dark">
+                EduHub
+            </a>
+        </div>
+
+        <nav class="flex-1 space-y-1 px-3 py-4">
+            <AuthorizeView Context="auth">
+                <Authorized>
+                    <NavLink href="/" class="@GetNavLinkClasses()" Match="NavLinkMatch.All">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Dashboard</span>
+                    </NavLink>
+
+                    <NavLink href="/profile" class="@GetNavLinkClasses()">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Profile</span>
+                    </NavLink>
+
+                    <AuthorizeView Roles="Teacher" Context="teacherAuth">
+                        <NavLink href="/create-consultation" class="@GetNavLinkClasses()">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Create Consultation</span>
+                        </NavLink>
+                    </AuthorizeView>
+
+                    <NavLink href="/notifications" class="@GetNavLinkClasses()">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 01-6 0v-1m6 0H9" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Notifications</span>
+                    </NavLink>
+
+                    <button @onclick="Logout" class="@GetNavLinkClasses()">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Logout</span>
+                    </button>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink href="/login" class="@GetNavLinkClasses()">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Login</span>
+                    </NavLink>
+                    <NavLink href="/register" class="@GetNavLinkClasses()">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        <span class="@(IsCollapsed ? "sr-only" : "ml-3")">Register</span>
+                    </NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+
+        <div class="border-t border-notion-border-light dark:border-notion-border-dark p-4">
+            <button @onclick="ToggleCollapse" class="w-full flex items-center justify-center p-2 rounded-lg hover:bg-notion-hover-light dark:hover:bg-notion-hover-dark text-notion-text-secondary-light dark:text-notion-text-secondary-dark">
+                <span class="sr-only">Toggle sidebar</span>
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@(IsCollapsed ? "M13 5l7 7-7 7M5 5l7 7-7 7" : "M11 19l-7-7 7-7m8 14l-7-7 7-7")" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsCollapsedChanged { get; set; }
+
+    private string GetSidebarClasses()
+    {
+        return $"fixed inset-y-0 left-0 z-50 {(IsCollapsed ? "w-20" : "w-64")} " +
+               "bg-notion-sidebar-light dark:bg-notion-sidebar-dark border-r border-notion-border-light dark:border-notion-border-dark " +
+               "transition-all duration-300 ease-in-out transform";
+    }
+
+    private string GetNavLinkClasses()
+    {
+        return "flex items-center px-4 py-3 text-sm font-medium rounded-md " +
+               "transition-all duration-300 hover:bg-muted/10 " +
+               "text-notion-text-secondary-light dark:text-notion-text-secondary-dark " +
+               "hover:bg-notion-hover-light dark:hover:bg-notion-hover-dark " +
+               "hover:text-notion-text-light dark:hover:text-notion-text-dark";
+    }
+
+    private async Task ToggleCollapse()
+    {
+        IsCollapsed = !IsCollapsed;
+        await IsCollapsedChanged.InvokeAsync(IsCollapsed);
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "sidebarCollapsed", IsCollapsed);
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var collapsed = await JSRuntime.InvokeAsync<bool>("localStorage.getItem", "sidebarCollapsed");
+        if (collapsed != IsCollapsed)
+        {
+            IsCollapsed = collapsed;
+            await IsCollapsedChanged.InvokeAsync(collapsed);
+        }
+    }
+}

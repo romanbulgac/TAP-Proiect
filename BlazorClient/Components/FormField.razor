@@ -1,0 +1,74 @@
+@typeparam TValue
+@inherits InputBase<TValue>
+
+<div>
+    <label for="@Id" class="block text-sm font-medium text-notion-text-light">@Label</label>
+    <div class="mt-1">
+        @if (IsPassword)
+        {
+            <input @ref="inputElement"
+                   id="@Id"
+                   class="appearance-none block w-full px-3 py-2 border border-notion-border-light rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 @(CssClass)"
+                   type="password"
+                   value="@CurrentValueAsString"
+                   @onchange="OnChangeEvent"
+                   placeholder="@Placeholder" />
+        }
+        else if (IsSelect)
+        {
+            <select @ref="inputElement"
+                    id="@Id"
+                    class="appearance-none block w-full px-3 py-2 border border-notion-border-light rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 @(CssClass)"
+                    value="@CurrentValueAsString"
+                    @onchange="OnChangeEvent">
+                @ChildContent
+            </select>
+        }
+        else
+        {
+            <input @ref="inputElement"
+                   id="@Id"
+                   class="appearance-none block w-full px-3 py-2 border border-notion-border-light rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 @(CssClass)"
+                   type="@InputType"
+                   value="@CurrentValueAsString"
+                   @onchange="OnChangeEvent"
+                   placeholder="@Placeholder" />
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(ValidationMessage))
+    {
+        <div class="mt-1 text-sm text-red-600">
+            @ValidationMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = Guid.NewGuid().ToString();
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public bool IsPassword { get; set; }
+    [Parameter] public bool IsSelect { get; set; }
+    [Parameter] public string InputType { get; set; } = "text";
+    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string ValidationMessage { get; set; } = string.Empty;
+    
+    private ElementReference inputElement;
+
+    protected override bool TryParseValueFromString(string? value, out TValue result, out string validationErrorMessage)
+    {
+        if (typeof(TValue) == typeof(string))
+        {
+            result = (TValue)(object)(value ?? string.Empty);
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        
+        throw new InvalidOperationException($"Unsupported type {typeof(TValue)}");
+    }
+
+    private void OnChangeEvent(ChangeEventArgs e)
+    {
+        CurrentValueAsString = e.Value?.ToString() ?? string.Empty;
+    }
+}

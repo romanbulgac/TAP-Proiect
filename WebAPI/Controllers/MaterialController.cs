@@ -1,14 +1,18 @@
-using Microsoft.AspNetCore.Mvc;
-using BusinessLayer.Interfaces;
 using BusinessLayer.DTOs;
+using BusinessLayer.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class MaterialController : ControllerBase
     {
-        // Dependency injection for material service
         private readonly IMaterialService _materialService;
 
         public MaterialController(IMaterialService materialService)
@@ -16,43 +20,74 @@ namespace WebAPI.Controllers
             _materialService = materialService;
         }
 
-        [HttpGet]
-        public IActionResult GetAllMaterials()
-        {
-            var materials = _materialService.GetAll();
-            return Ok(materials);
-        }
+        private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? throw new InvalidOperationException("User ID not found in token."));
+
 
         [HttpGet("{id}")]
-        public IActionResult GetMaterialById(Guid id)
+        public async Task<IActionResult> GetMaterial(Guid id)
         {
-            var material = _materialService.GetById(id);
-            if (material == null)
-                return NotFound();
+            var material = await _materialService.GetMaterialByIdAsync(id);
+            if (material == null) return NotFound();
             return Ok(material);
         }
 
-        [HttpPost]
-        public IActionResult CreateMaterial(MaterialDto model)
+        [HttpGet("consultation/{consultationId}")]
+        public async Task<IActionResult> GetMaterialsForConsultation(Guid consultationId)
         {
-            _materialService.Create(model);
-            return CreatedAtAction(nameof(GetMaterialById), new { id = model.Id }, model);
+            var materials = await _materialService.GetMaterialsForConsultationAsync(consultationId);
+            return Ok(materials);
+        }
+        
+        [HttpGet("teacher/{teacherId}")]
+        public async Task<IActionResult> GetMaterialsByTeacher(Guid teacherId)
+        {
+            var materials = await _materialService.GetMaterialsByTeacherAsync(teacherId);
+            return Ok(materials);
+        }
+
+
+        [HttpPost]
+        [Authorize(Roles = "Teacher,Administrator")]
+        public async Task<IActionResult> CreateMaterial([FromBody] MaterialDto materialDto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            
+            var userId = GetUserId();
+            // Ensure TeacherId in DTO is set, possibly to userId if the creator is a teacher
+            if (User.IsInRole("Teacher") && materialDto.TeacherId == Guid.Empty)
+            {
+                materialDto.TeacherId = userId;
+            }
+            else if (materialDto.TeacherId == Guid.Empty) // Admin creating for someone else must specify TeacherId
+            {
+                 return BadRequest("TeacherId must be specified when Admin creates material.");
+            }
+
+
+            var materialId = await _materialService.CreateMaterialAsync(materialDto, userId);
+            materialDto.Id = materialId; // Set the ID in the DTO for the response
+            return CreatedAtAction(nameof(GetMaterial), new { id = materialId }, materialDto);
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateMaterial(Guid id, MaterialDto model)
+        [Authorize(Roles = "Teacher,Administrator")]
+        public async Task<IActionResult> UpdateMaterial(Guid id, [FromBody] MaterialDto materialDto)
         {
-            if (id != model.Id)
-                return BadRequest();
-
-            _materialService.Update(id, model);
-            return Ok();
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var userId = GetUserId();
+            var success = await _materialService.UpdateMaterialAsync(id, materialDto, userId);
+            if (!success) return NotFound(); // Or Forbid() if auth failed within service
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteMaterial(Guid id)
+        [Authorize(Roles = "Teacher,Administrator")]
+        public async Task<IActionResult> DeleteMaterial(Guid id)
         {
-            _materialService.Delete(id);
+            var userId = GetUserId();
+            var success = await _materialService.DeleteMaterialAsync(id, userId);
+            if (!success) return NotFound(); // Or Forbid()
             return NoContent();
         }
     }

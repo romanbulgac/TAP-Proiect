@@ -1,0 +1,308 @@
+@page "/bookings"
+@using BusinessLayer.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Student")]
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h1 class="text-2xl font-semibold mb-6">Book a Consultation</h1>
+
+<div class="bg-white shadow-md rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-medium mb-4">Find Available Teachers</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div>
+            <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+            <select id="subject" @bind="selectedSubject" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">All Subjects</option>
+                <option value="Calculus">Calculus</option>
+                <option value="Linear Algebra">Linear Algebra</option>
+                <option value="Statistics">Statistics</option>
+                <option value="Discrete Mathematics">Discrete Mathematics</option>
+                <option value="Numerical Analysis">Numerical Analysis</option>
+            </select>
+        </div>
+        
+        <div>
+            <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <input type="date" id="date" @bind="selectedDate" min="@DateTime.Now.ToString("yyyy-MM-dd")" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+        </div>
+        
+        <div class="flex items-end">
+            <button @onclick="SearchAvailability" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <div class="flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
+
+@if (hasSearched && availableTeachers.Any())
+{
+    <h2 class="text-xl font-semibold mb-4">Available Teachers</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @foreach (var teacher in availableTeachers)
+        {
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="p-5">
+                    <div class="flex items-center mb-4">
+                        <div class="mr-3">
+                            @if (string.IsNullOrEmpty(teacher.ProfilePicture))
+                            {
+                                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                                    @teacher.Name?.Substring(0, 1)
+                                </div>
+                            }
+                            else
+                            {
+                                <img src="@teacher.ProfilePicture" alt="@teacher.Name" class="w-12 h-12 rounded-full object-cover" />
+                            }
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-900">@teacher.Name @teacher.Surname</h3>
+                            <p class="text-sm text-gray-500">Mathematics Department</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-1">Specialization</h4>
+                        <div class="flex flex-wrap gap-1">
+                            @foreach (var subject in GetTeacherSubjects(teacher))
+                            {
+                                <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">@subject</span>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-1">Available Time Slots</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach (var timeSlot in GetTeacherTimeSlots(teacher))
+                            {
+                                <button @onclick="() => SelectTimeSlot(teacher, timeSlot)" 
+                                        class="text-left px-3 py-2 text-xs border rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    @timeSlot.ToString("h:mm tt")
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else if (hasSearched)
+{
+    <div class="p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-1">No Available Slots</h3>
+        <p class="text-gray-500">No teachers available for the selected criteria. Try a different date or subject.</p>
+    </div>
+}
+
+@if (showBookingModal)
+{
+    <div class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @onclick="CloseModal"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
+                                Book Consultation
+                            </h3>
+                            
+                            <div class="mb-4">
+                                <label for="consultation-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                <input type="text" id="consultation-title" @bind="consultationTitle" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Help with Calculus Derivatives" />
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="consultation-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <textarea id="consultation-description" @bind="consultationDescription" rows="3" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Describe what you need help with..."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="consultation-duration" class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                                <select id="consultation-duration" @bind="consultationDuration" class="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="30">30 minutes</option>
+                                    <option value="45">45 minutes</option>
+                                    <option value="60">60 minutes</option>
+                                    <option value="90">90 minutes</option>
+                                </select>
+                            </div>
+                            
+                            <div class="p-4 rounded-md bg-blue-50 mb-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3 flex-1 md:flex md:justify-between">
+                                        <p class="text-sm text-blue-700">
+                                            You are booking with <strong>@selectedTeacher?.Name @selectedTeacher?.Surname</strong> on <strong>@selectedDate.ToString("MMM d, yyyy")</strong> at <strong>@selectedTime.ToString("h:mm tt")</strong>.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button @onclick="SubmitConsultation" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Book Consultation
+                    </button>
+                    <button @onclick="CloseModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string selectedSubject = string.Empty;
+    private DateTime selectedDate = DateTime.Now.Date.AddDays(1);
+    private List<UserDto> availableTeachers = new List<UserDto>();
+    private bool hasSearched = false;
+    private bool showBookingModal = false;
+    private UserDto? selectedTeacher;
+    private DateTime selectedTime;
+    private string consultationTitle = string.Empty;
+    private string consultationDescription = string.Empty;
+    private int consultationDuration = 60;
+    
+    private async Task SearchAvailability()
+    {
+        // In a real app, this would call your API
+        // For demo purposes, we'll create some sample teachers
+        availableTeachers = new List<UserDto>
+        {
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "John",
+                Surname = "Smith",
+                Email = "john.smith@university.edu",
+                Role = "Teacher",
+                UserType = "Math",
+                ProfilePicture = null,
+                IsActive = true
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sarah",
+                Surname = "Johnson",
+                Email = "sarah.johnson@university.edu",
+                Role = "Teacher",
+                UserType = "Math",
+                ProfilePicture = null,
+                IsActive = true
+            },
+            new UserDto
+            {
+                Id = Guid.NewGuid(),
+                Name = "Michael",
+                Surname = "Brown",
+                Email = "michael.brown@university.edu",
+                Role = "Teacher",
+                UserType = "Math", 
+                ProfilePicture = null,
+                IsActive = true
+            }
+        };
+        
+        // Filter by subject if selected
+        if (!string.IsNullOrEmpty(selectedSubject))
+        {
+            // In a real app, you'd have a proper way to filter teachers by subject expertise
+            // Here we'll just use a random filter for demonstration
+            availableTeachers = availableTeachers.Where(t => new Random().Next(0, 2) == 1).ToList();
+        }
+        
+        hasSearched = true;
+        
+        await Task.CompletedTask; // Just to make this async
+    }
+    
+    private List<string> GetTeacherSubjects(UserDto teacher)
+    {
+        // In a real app, you'd get the teacher's subjects from your data
+        // For demo purposes, we'll assign random subjects
+        var allSubjects = new[] { "Calculus", "Linear Algebra", "Statistics", "Discrete Mathematics", "Numerical Analysis" };
+        var rand = new Random(teacher.Id.GetHashCode());
+        
+        return Enumerable.Range(0, 5)
+            .Select(_ => rand.Next(0, allSubjects.Length))
+            .Distinct()
+            .Select(i => allSubjects[i])
+            .ToList();
+    }
+    
+    private List<DateTime> GetTeacherTimeSlots(UserDto teacher)
+    {
+        // In a real app, you'd get the teacher's available time slots from your data
+        // For demo purposes, we'll generate random time slots
+        var slots = new List<DateTime>();
+        var rand = new Random(teacher.Id.GetHashCode());
+        
+        // Generate between 3 and 6 slots
+        int slotCount = rand.Next(3, 7);
+        var baseTime = new DateTime(selectedDate.Year, selectedDate.Month, selectedDate.Day, 9, 0, 0);
+        
+        for (int i = 0; i < slotCount; i++)
+        {
+            // Add random hours between 9 AM and 5 PM
+            int hourOffset = rand.Next(0, 8);
+            int minuteOffset = rand.Next(0, 4) * 15;
+            slots.Add(baseTime.AddHours(hourOffset).AddMinutes(minuteOffset));
+        }
+        
+        return slots.OrderBy(s => s).ToList();
+    }
+    
+    private void SelectTimeSlot(UserDto teacher, DateTime time)
+    {
+        selectedTeacher = teacher;
+        selectedTime = time;
+        showBookingModal = true;
+    }
+    
+    private void CloseModal()
+    {
+        showBookingModal = false;
+    }
+    
+    private async Task SubmitConsultation()
+    {
+        if (string.IsNullOrWhiteSpace(consultationTitle))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please enter a consultation title.");
+            return;
+        }
+        
+        // In a real app, you'd call your API to create the consultation
+        
+        // Show success message
+        await JSRuntime.InvokeVoidAsync("showToast", "Success", "Your consultation has been booked successfully!", "success");
+        
+        // Close modal
+        showBookingModal = false;
+        
+        // Redirect to consultations page
+        NavigationManager.NavigateTo("/consultations");
+    }
+}

@@ -1,79 +1,213 @@
+// In BlazorClient/Pages/Dashboard.razor
 @page "/"
 @attribute [Authorize]
-@inject BlazorClient.Services.IConsultationService ConsultationService
-@using BlazorClient.Models
-@using Microsoft.AspNetCore.Components.Authorization
+@using BusinessLayer.DTOs
+@using global::BlazorClient.Services
+@inject IConsultationService ConsultationService
+@inject INotificationService NotificationService
 
-<PageTitle>Dashboard</PageTitle>
-
-<h1>Dashboard</h1>
-
-<AuthorizeView>
-    <Authorized>
-        <p>Welcome, @context.User.Identity?.Name!</p>
-        <p>Your role(s): @string.Join(", ", context.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))</p>
-
-        @if (consultations == null)
-        {
-            <p><em>Loading consultations...</em></p>
-        }
-        else
-        {
-            <h3>Your Consultations</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Topic</th>
-                        <th>Scheduled At</th>
-                        <th>Teacher</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var consultation in consultations)
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-semibold mb-6 text-gray-800">Dashboard</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Upcoming Consultations Widget -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-800">Upcoming Consultations</h2>
+                <span class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                    <a href="@(IsStudent ? "/consultations" : "/my-consultations")">View all</a>
+                </span>
+            </div>
+            
+            @if (isLoadingConsultations)
+            {
+                <div class="flex justify-center py-4">
+                    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+            }
+            else if (upcomingConsultations.Any())
+            {
+                <div class="space-y-3">
+                    @foreach (var consultation in upcomingConsultations.Take(3))
                     {
-                        <tr>
-                            <td>@consultation.Topic</td>
-                            <td>@consultation.ScheduledAt.ToShortDateString() @consultation.ScheduledAt.ToShortTimeString()</td>
-                            <td>@consultation.TeacherName</td>
-                            <td><a href="/consultation/@consultation.Id">Details</a></td>
-                        </tr>
+                        <a href="/consultation/@consultation.Id" class="block p-3 hover:bg-blue-50 rounded-md transition-colors">
+                            <div class="font-medium text-gray-800 mb-1">@consultation.Title</div>
+                            <div class="text-sm text-gray-600">
+                                @if (IsTeacher)
+                                {
+                                    <span>with @consultation.StudentName</span>
+                                }
+                                else
+                                {
+                                    <span>with @consultation.TeacherName</span>
+                                }
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                @consultation.ScheduledAt.ToString("MMM dd, yyyy • h:mm tt")
+                            </div>
+                        </a>
                     }
-                </tbody>
-            </table>
-        }
-
-        @if (context.User.IsInRole("Teacher"))
-        {
-            <p><a href="/create-consultation" class="btn btn-primary">Create New Consultation</a></p>
-        }
-
-    </Authorized>
-    <NotAuthorized>
-        <p>You need to log in to see the dashboard.</p>
-    </NotAuthorized>
-</AuthorizeView>
-
+                </div>
+            }
+            else
+            {
+                <div class="py-3 text-center text-gray-500">
+                    <p>No upcoming consultations</p>
+                </div>
+            }
+        </div>
+        
+        <!-- Notifications Widget -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-800">Recent Notifications</h2>
+                <span class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                    <a href="/my-notifications">View all</a>
+                </span>
+            </div>
+            
+            @if (isLoadingNotifications)
+            {
+                <div class="flex justify-center py-4">
+                    <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+            }
+            else if (recentNotifications.Any())
+            {
+                <div class="space-y-3">
+                    @foreach (var notification in recentNotifications.Take(3))
+                    {
+                        <div class="p-3 @(notification.IsRead ? "" : "bg-blue-50") rounded-md">
+                            <div class="font-medium text-gray-800 mb-1">@notification.Title</div>
+                            <div class="text-sm text-gray-600">@notification.Message</div>
+                            <div class="text-xs text-gray-500 mt-1">@GetTimeAgo(notification.CreatedAt)</div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="py-3 text-center text-gray-500">
+                    <p>No new notifications</p>
+                </div>
+            }
+        </div>
+        
+        <!-- Quick Actions Widget -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-lg font-medium text-gray-800 mb-4">Quick Actions</h2>
+            
+            <div class="space-y-3">
+                @if (IsStudent)
+                {
+                    <a href="/bookings" class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>Book New Consultation</span>
+                    </a>
+                }
+                
+                @if (IsTeacher)
+                {
+                    <a href="/availability" class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Update Availability</span>
+                    </a>
+                }
+                
+                <a href="/materials" class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>Browse Learning Materials</span>
+                </a>
+                
+                <a href="/profile" class="flex items-center p-3 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span>View Profile</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    private IEnumerable<Consultation>? consultations;
-
+    private List<ConsultationDto> upcomingConsultations = new List<ConsultationDto>();
+    private List<Notification> recentNotifications = new List<Notification>();
+    private bool isLoadingConsultations = true;
+    private bool isLoadingNotifications = true;
+    private bool IsStudent = false;
+    private bool IsTeacher = false;
+    
     [CascadingParameter]
-    private Task<AuthenticationState>? authenticationStateTask { get; set; }
-
+    private Task<AuthenticationState>? authStateTask { get; set; }
+    
     protected override async Task OnInitializedAsync()
     {
-        if (authenticationStateTask != null)
+        if (authStateTask != null)
         {
-            var authState = await authenticationStateTask;
-            var user = authState.User;
-
-            if (user.Identity != null && user.Identity.IsAuthenticated)
-            {
-                // Fetch consultations based on user role or all if admin etc.
-                // This is a simplified fetch for all.
-                consultations = await ConsultationService.GetConsultationsAsync();
-            }
+            var authState = await authStateTask;
+            IsStudent = authState.User.IsInRole("Student");
+            IsTeacher = authState.User.IsInRole("Teacher");
         }
+        
+        // Load data in parallel
+        var consultationsTask = LoadConsultationsAsync();
+        var notificationsTask = LoadNotificationsAsync();
+        
+        await Task.WhenAll(consultationsTask, notificationsTask);
+    }
+    
+    private async Task LoadConsultationsAsync()
+    {
+        try
+        {
+            upcomingConsultations = (await ConsultationService.GetUpcomingConsultationsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading upcoming consultations: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingConsultations = false;
+        }
+    }
+    
+    private async Task LoadNotificationsAsync()
+    {
+        try
+        {
+            recentNotifications = (await NotificationService.GetNotificationsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading notifications: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingNotifications = false;
+        }
+    }
+    
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.Now - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        if (timeSpan.TotalHours < 1)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalDays < 1)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+            
+        return dateTime.ToString("MMM d");
     }
 }

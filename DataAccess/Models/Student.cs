@@ -14,6 +14,6 @@ public sealed class Student : User
     private readonly HashSet<ConsultationStudent> _consultationLinks = new();
     private readonly HashSet<Review> _reviewsWritten = new(); // Added for reviews written by the student
     public Guid? TeacherId { get; set; } = null; // Renamed from 'TeachersId'
-    public Teacher? Teacher { get; set; } = null!;
-    public IReadOnlyCollection<Review> ReviewsWritten => _reviewsWritten; // Added
+    public Teacher? Teacher { get; set; } = null!; public IReadOnlyCollection<Review> ReviewsWritten => _reviewsWritten;
+public ICollection<ConsultationStudent> ConsultationLinks { get; set; } = new List<ConsultationStudent>();    
 }

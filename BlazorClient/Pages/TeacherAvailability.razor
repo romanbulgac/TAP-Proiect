@@ -1,0 +1,260 @@
+@page "/schedule"
+@using System.Security.Claims
+@using System.Text.Json
+@using BlazorClient.Services
+@using DataAccess.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Schedule Availability</PageTitle>
+
+<div class="bg-white shadow-md rounded-lg p-6">
+    <h1 class="text-2xl font-semibold text-gray-800 mb-6">Manage Your Availability</h1>
+
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+                <button @onclick="PreviousMonth" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h2 class="text-lg font-medium mx-4">@selectedDate.ToString("MMMM yyyy")</h2>
+                <button @onclick="NextMonth" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div>
+                <button @onclick="() => selectedDate = DateTime.Today" class="text-sm text-blue-600 hover:text-blue-800">
+                    Today
+                </button>
+            </div>
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="grid grid-cols-7 gap-2">
+            <!-- Day names -->
+            @foreach (var dayName in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+            {
+                <div class="text-center text-gray-500 font-medium p-2">@dayName</div>
+            }
+
+            <!-- Calendar days -->
+            @for (int i = 0; i < firstDayOfMonth; i++)
+            {
+                <div class="p-2"></div> <!-- Empty cells for days before the first day of month -->
+            }
+
+            @for (int day = 1; day <= daysInMonth; day++)
+            {
+                var currentDate = new DateTime(selectedDate.Year, selectedDate.Month, day);
+                var isToday = currentDate.Date == DateTime.Today;
+                var isSelected = currentDate.Date == selectedDay.Date;
+                var hasAvailability = availabilityDates.Contains(currentDate.Date);
+                
+                <div @onclick="() => SelectDay(currentDate)" 
+                     class="p-2 border rounded cursor-pointer text-center min-h-[70px] relative
+                        @(isToday ? "border-blue-500" : "")
+                        @(isSelected ? "bg-blue-50" : "")
+                        @(hasAvailability ? "border-green-400" : "border-gray-200")">
+                    <span class="@(isToday ? "bg-blue-500 text-white rounded-full h-6 w-6 flex items-center justify-center mx-auto" : "")">
+                        @day
+                    </span>
+                    @if (hasAvailability)
+                    {
+                        <span class="absolute bottom-1 left-0 right-0 text-xs text-green-600 flex justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (selectedDay != DateTime.MinValue)
+    {
+        <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold mb-4">@selectedDay.ToString("dddd, MMMM d, yyyy")</h3>
+            
+            <div class="mb-6">
+                <h4 class="font-medium mb-2">Time Slots</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    @foreach (var timeSlot in availableTimeSlots)
+                    {
+                        var isSelected = selectedSlots.Any(s => s.StartTime == timeSlot.StartTime && s.EndTime == timeSlot.EndTime);
+                        
+                        <div @onclick="() => ToggleTimeSlot(timeSlot)" 
+                             class="border px-2 py-3 rounded text-center cursor-pointer hover:bg-gray-50 
+                                   @(isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200")">
+                            @($"{timeSlot.StartTime:HH:mm} - {timeSlot.EndTime:HH:mm}")
+                        </div>
+                    }
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <div>
+                    <button @onclick="ClearSelection" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        Clear Selection
+                    </button>
+                </div>
+                <div>
+                    <button @onclick="SaveAvailability" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                        Save Availability
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime selectedDate = DateTime.Today;
+    private DateTime selectedDay = DateTime.MinValue;
+    private int firstDayOfMonth;
+    private int daysInMonth;
+    private List<DateTime> availabilityDates = new List<DateTime>();
+    private List<TimeSlot> availableTimeSlots = new List<TimeSlot>();
+    private List<TimeSlot> selectedSlots = new List<TimeSlot>();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAvailabilitiesAsync();
+        UpdateCalendarData();
+        GenerateAvailableTimeSlots();
+    }
+    
+    private void UpdateCalendarData()
+    {
+        // Calculate first day of month (0 = Monday, 6 = Sunday in this UI)
+        firstDayOfMonth = ((int)new DateTime(selectedDate.Year, selectedDate.Month, 1).DayOfWeek + 6) % 7;
+        
+        // Calculate number of days in month
+        daysInMonth = DateTime.DaysInMonth(selectedDate.Year, selectedDate.Month);
+    }
+    
+    private void GenerateAvailableTimeSlots()
+    {
+        // Create time slots from 8:00 to 20:00 with 1 hour intervals
+        availableTimeSlots.Clear();
+        
+        DateTime startTime = new DateTime(selectedDay.Year, selectedDay.Month, selectedDay.Day, 8, 0, 0);
+        DateTime endTime = new DateTime(selectedDay.Year, selectedDay.Month, selectedDay.Day, 20, 0, 0);
+        
+        while (startTime < endTime)
+        {
+            DateTime slotEndTime = startTime.AddHours(1);
+            availableTimeSlots.Add(new TimeSlot { 
+                StartTime = startTime, 
+                EndTime = slotEndTime 
+            });
+            
+            startTime = slotEndTime;
+        }
+    }
+    
+    private async Task LoadAvailabilitiesAsync()
+    {
+        try
+        {
+            // In a real app, you'd fetch this from your API
+            // Example: var result = await Http.GetFromJsonAsync<List<TeacherAvailability>>("api/availability");
+            
+            // For demonstration, we'll create some sample data
+            availabilityDates = new List<DateTime>
+            {
+                DateTime.Today,
+                DateTime.Today.AddDays(2),
+                DateTime.Today.AddDays(5),
+                DateTime.Today.AddDays(7),
+                DateTime.Today.AddDays(10)
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading availabilities: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("showToast", "Error", "Failed to load your availability data", "error");
+        }
+    }
+    
+    private void PreviousMonth()
+    {
+        selectedDate = selectedDate.AddMonths(-1);
+        UpdateCalendarData();
+    }
+    
+    private void NextMonth()
+    {
+        selectedDate = selectedDate.AddMonths(1);
+        UpdateCalendarData();
+    }
+    
+    private void SelectDay(DateTime date)
+    {
+        selectedDay = date;
+        GenerateAvailableTimeSlots();
+        
+        // If this day already has availability, load the time slots
+        // In a real app, you'd fetch these from your API
+        selectedSlots.Clear();
+    }
+    
+    private void ToggleTimeSlot(TimeSlot timeSlot)
+    {
+        var existing = selectedSlots.FirstOrDefault(ts => 
+            ts.StartTime == timeSlot.StartTime && ts.EndTime == timeSlot.EndTime);
+            
+        if (existing != null)
+        {
+            selectedSlots.Remove(existing);
+        }
+        else
+        {
+            selectedSlots.Add(timeSlot);
+        }
+    }
+    
+    private void ClearSelection()
+    {
+        selectedSlots.Clear();
+    }
+    
+    private async Task SaveAvailability()
+    {
+        if (selectedSlots.Count == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("showToast", "Warning", "No time slots selected", "warning");
+            return;
+        }
+        
+        try
+        {
+            // In a real app, you'd post this to your API
+            // Example: await Http.PostAsJsonAsync("api/availability", new { Date = selectedDay, TimeSlots = selectedSlots });
+            
+            // Save availability information
+            if (!availabilityDates.Contains(selectedDay.Date))
+            {
+                availabilityDates.Add(selectedDay.Date);
+            }
+            
+            await JSRuntime.InvokeVoidAsync("showToast", "Success", "Availability saved successfully", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving availability: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("showToast", "Error", "Failed to save availability", "error");
+        }
+    }
+    
+    public class TimeSlot
+    {
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+    }
+}

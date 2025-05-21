@@ -1,9 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace BusinessLayer.Interfaces
 {
     public interface IStatisticsService
     {
-        double CalculateAverageTeacherRating(Guid teacherId, string strategyName = "simple");
-        int CountCompletedConsultations();
-        // ...other stats: popular materials, etc.
+        Task<double> CalculateAverageTeacherRatingAsync(Guid teacherId, string strategyName = "simple");
+        Task<int> CountCompletedConsultationsAsync();
+        IDictionary<string, string> GetAvailableRatingStrategies();
+        Task<IDictionary<string, double>> GetTeacherPopularityStatsAsync();
     }
 }
